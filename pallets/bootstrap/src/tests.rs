@@ -7,6 +7,9 @@ use serial_test::serial;
 use sp_runtime::traits::BadOrigin;
 use test_case::test_case;
 
+const FIRST_TOKEN_ID: TokenId = 0;
+const SECOND_TOKEN_ID: TokenId = 1;
+const TOKEN_PAIR: (TokenId, TokenId) = (FIRST_TOKEN_ID, SECOND_TOKEN_ID);
 const USER_ID: u128 = 0;
 const PROVISION_USER1_ID: u128 = 200;
 const PROVISION_USER2_ID: u128 = 201;
@@ -33,7 +36,7 @@ fn set_up() {
 fn jump_to_whitelist_phase() {
 	let pool_exists_mock = MockPoolCreateApi::pool_exists_context();
 	pool_exists_mock.expect().return_const(false);
-	Bootstrap::start_ido(Origin::root(), 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
+	Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
 	Bootstrap::on_initialize(15_u32.into());
 	assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());
 }
@@ -42,7 +45,7 @@ fn jump_to_public_phase() {
 	let pool_exists_mock = MockPoolCreateApi::pool_exists_context();
 	pool_exists_mock.expect().return_const(false);
 
-	Bootstrap::start_ido(Origin::root(), 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
+	Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
 	Bootstrap::on_initialize(25_u32.into());
 	assert_eq!(BootstrapPhase::Public, Phase::<Test>::get());
 }
@@ -166,7 +169,7 @@ fn test_donation_with_more_tokens_than_available() {
 fn test_prevent_provisions_in_before_start_phase() {
 	new_test_ext().execute_with(|| {
 		set_up();
-		Phase::<Test>::put(BootstrapPhase::BeforeStart);
+		Phase::<Test>::put(BootstrapPhase::Finished);
 
 		assert_err!(
 			Bootstrap::provision(Origin::signed(USER_ID), KSMId::get(), INITIAL_AMOUNT * 2),
@@ -255,7 +258,14 @@ fn test_non_root_user_can_not_start_ido() {
 	new_test_ext().execute_with(|| {
 		set_up();
 		assert_err!(
-			Bootstrap::start_ido(Origin::signed(USER_ID), 0_u32.into(), 1, 1, DEFAULT_RATIO),
+			Bootstrap::start_ido(
+				Origin::signed(USER_ID),
+				TOKEN_PAIR,
+				0_u32.into(),
+				1,
+				1,
+				DEFAULT_RATIO
+			),
 			BadOrigin
 		);
 	});
@@ -286,7 +296,7 @@ fn test_ido_start_cannot_happen_in_the_past() {
 		set_up();
 		System::set_block_number(1000);
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), 999_u32.into(), 1, 1, DEFAULT_RATIO),
+			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 999_u32.into(), 1, 1, DEFAULT_RATIO),
 			Error::<Test>::BootstrapStartInThePast
 		);
 	});
@@ -299,11 +309,11 @@ fn test_ido_start_can_not_be_initialize_with_0_ratio() {
 		set_up();
 		System::set_block_number(10);
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), 999_u32.into(), 1, 1, (1, 0)),
+			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 999_u32.into(), 1, 1, (1, 0)),
 			Error::<Test>::WrongRatio
 		);
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), 999_u32.into(), 1, 1, (0, 1)),
+			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 999_u32.into(), 1, 1, (0, 1)),
 			Error::<Test>::WrongRatio
 		);
 	});
@@ -315,7 +325,7 @@ fn test_cannot_start_ido_with_whitelist_phase_length_equal_zero() {
 	new_test_ext().execute_with(|| {
 		set_up();
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), 100_u32.into(), 0, 1, DEFAULT_RATIO),
+			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 0, 1, DEFAULT_RATIO),
 			Error::<Test>::PhaseLengthCannotBeZero
 		);
 	});
@@ -327,7 +337,7 @@ fn test_cannot_start_ido_with_public_phase_length_equal_zero() {
 	new_test_ext().execute_with(|| {
 		set_up();
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), 100_u32.into(), 1, 0, DEFAULT_RATIO),
+			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 1, 0, DEFAULT_RATIO),
 			Error::<Test>::PhaseLengthCannotBeZero
 		);
 	});
@@ -342,18 +352,23 @@ fn test_bootstrap_can_be_modified_only_before_its_started() {
 		let pool_exists_mock = MockPoolCreateApi::pool_exists_context();
 		pool_exists_mock.expect().return_const(false);
 
-		Bootstrap::start_ido(Origin::root(), 50_u32.into(), 10, 20, DEFAULT_RATIO).unwrap();
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 50_u32.into(), 10, 20, DEFAULT_RATIO)
+			.unwrap();
 
-		Bootstrap::start_ido(Origin::root(), 100_u32.into(), 10, 20, DEFAULT_RATIO).unwrap();
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 20, DEFAULT_RATIO)
+			.unwrap();
 
 		Bootstrap::on_initialize(100_u32.into());
 
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), 100_u32.into(), 10, 20, DEFAULT_RATIO),
+			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 20, DEFAULT_RATIO),
 			Error::<Test>::AlreadyStarted
 		);
 
-		assert_eq!(Some((100_u32.into(), 10_u32, 20_u32, DEFAULT_RATIO)), Bootstrap::config());
+		assert_eq!(
+			Some((TokenPair::new(TOKEN_PAIR), 100_u64, 10_u32, 20_u32, DEFAULT_RATIO)),
+			Bootstrap::config()
+		);
 	});
 }
 
@@ -375,6 +390,7 @@ fn test_bootstrap_state_transitions() {
 
 		Bootstrap::start_ido(
 			Origin::root(),
+			TOKEN_PAIR,
 			BOOTSTRAP_WHITELIST_START.into(),
 			(BOOTSTRAP_PUBLIC_START - BOOTSTRAP_WHITELIST_START).try_into().unwrap(),
 			(BOOTSTRAP_FINISH - BOOTSTRAP_PUBLIC_START).try_into().unwrap(),
@@ -384,7 +400,7 @@ fn test_bootstrap_state_transitions() {
 
 		for i in 1..BOOTSTRAP_WHITELIST_START {
 			Bootstrap::on_initialize(i);
-			assert_eq!(Bootstrap::phase(), BootstrapPhase::BeforeStart);
+			assert_eq!(Bootstrap::phase(), BootstrapPhase::Finished);
 		}
 
 		Bootstrap::on_initialize(BOOTSTRAP_WHITELIST_START);
@@ -425,6 +441,7 @@ fn test_bootstrap_state_transitions_when_on_initialized_is_not_called() {
 
 		Bootstrap::start_ido(
 			Origin::root(),
+			TOKEN_PAIR,
 			BOOTSTRAP_WHITELIST_START.into(),
 			(BOOTSTRAP_PUBLIC_START - BOOTSTRAP_WHITELIST_START).try_into().unwrap(),
 			(BOOTSTRAP_FINISH - BOOTSTRAP_PUBLIC_START).try_into().unwrap(),
@@ -432,7 +449,9 @@ fn test_bootstrap_state_transitions_when_on_initialized_is_not_called() {
 		)
 		.unwrap();
 
-		assert_eq!(Bootstrap::phase(), BootstrapPhase::BeforeStart);
+		assert_eq!(Bootstrap::phase(), BootstrapPhase::Finished);
+		Bootstrap::on_initialize(120);
+		assert_eq!(Bootstrap::phase(), BootstrapPhase::Public);
 		Bootstrap::on_initialize(200);
 		assert_eq!(Bootstrap::phase(), BootstrapPhase::Finished);
 	});
@@ -445,18 +464,33 @@ fn test_bootstrap_schedule_overflow() {
 		set_up();
 
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), u64::MAX.into(), u32::MAX, 1_u32, DEFAULT_RATIO),
-			Error::<Test>::MathOverflow
-		);
-
-		assert_err!(
-			Bootstrap::start_ido(Origin::root(), u64::MAX.into(), 1_u32, u32::MAX, DEFAULT_RATIO),
+			Bootstrap::start_ido(
+				Origin::root(),
+				TOKEN_PAIR,
+				u64::MAX.into(),
+				u32::MAX,
+				1_u32,
+				DEFAULT_RATIO
+			),
 			Error::<Test>::MathOverflow
 		);
 
 		assert_err!(
 			Bootstrap::start_ido(
 				Origin::root(),
+				TOKEN_PAIR,
+				u64::MAX.into(),
+				1_u32,
+				u32::MAX,
+				DEFAULT_RATIO
+			),
+			Error::<Test>::MathOverflow
+		);
+
+		assert_err!(
+			Bootstrap::start_ido(
+				Origin::root(),
+				TOKEN_PAIR,
 				u64::MAX.into(),
 				u32::MAX,
 				u32::MAX,
@@ -475,7 +509,7 @@ fn test_do_not_allow_for_creating_starting_bootstrap_for_existing_pool() {
 		pool_exists_mock.expect().return_const(true);
 
 		assert_err!(
-			Bootstrap::start_ido(Origin::root(), 100_u32.into(), 10, 10, DEFAULT_RATIO),
+			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO),
 			Error::<Test>::PoolAlreadyExists
 		);
 	});
@@ -507,7 +541,8 @@ fn test_crate_pool_is_called_with_proper_arguments_after_bootstrap_finish() {
 			.times(1)
 			.return_const(POOL_CREATE_DUMMY_RETURN_VALUE);
 
-		Bootstrap::start_ido(Origin::root(), 100_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
+			.unwrap();
 
 		Bootstrap::on_initialize(110_u32.into());
 		Bootstrap::provision(Origin::signed(USER_ID), MGAId::get(), MGA_PROVISON).unwrap();
@@ -525,7 +560,8 @@ fn test_cannot_claim_rewards_when_bootstrap_is_not_finished() {
 		let pool_exists_mock = MockPoolCreateApi::pool_exists_context();
 		pool_exists_mock.expect().return_const(false);
 
-		Bootstrap::start_ido(Origin::root(), 100_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
+			.unwrap();
 
 		Bootstrap::on_initialize(100_u32.into());
 		assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());
@@ -566,7 +602,8 @@ fn test_rewards_are_distributed_properly_with_single_user() {
 				Some((id, issuance))
 			});
 
-		Bootstrap::start_ido(Origin::root(), 100_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
+			.unwrap();
 
 		Bootstrap::on_initialize(100_u32.into());
 		assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());
@@ -640,7 +677,8 @@ fn test_rewards_are_distributed_properly_with_multiple_user() {
 				Some((id, issuance))
 			});
 
-		Bootstrap::start_ido(Origin::root(), 100_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
+			.unwrap();
 
 		Bootstrap::on_initialize(100_u32.into());
 		assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());

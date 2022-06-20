@@ -46,6 +46,27 @@ macro_rules! log {
 	};
 }
 
+#[derive(PartialEq, Clone, Encode, Decode, TypeInfo, Debug)]
+pub struct TokenPair {
+	first: TokenId,
+	second: TokenId,
+}
+
+impl TokenPair {
+	pub fn new(pair: (TokenId, TokenId)) -> Self {
+		TokenPair {
+			first: sp_std::cmp::min(pair.0, pair.1),
+			second: sp_std::cmp::max(pair.1, pair.0),
+		}
+	}
+}
+
+impl From<TokenPair> for (TokenId, TokenId) {
+	fn from(pair: TokenPair) -> (TokenId, TokenId) {
+		(pair.first, pair.second)
+	}
+}
+
 pub type BlockNrAsBalance = Balance;
 
 pub enum ProvisionKind {
@@ -69,11 +90,9 @@ pub mod pallet {
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_initialize(n: T::BlockNumber) -> Weight {
 			let phase = Phase::<T>::get(); // R:1
-			if phase == BootstrapPhase::Finished {
-				return T::DbWeight::get().reads(1)
-			}
 
-			if let Some((start, whitelist_length, public_length, _)) = BootstrapSchedule::<T>::get()
+			if let Some((token_pair, start, whitelist_length, public_length, _)) =
+				BootstrapSchedule::<T>::get()
 			{
 				// R:1
 				// NOTE: arythmetics protected by invariant check in Bootstrap::start_ido
@@ -83,6 +102,7 @@ pub mod pallet {
 
 				if n >= finished {
 					Phase::<T>::put(BootstrapPhase::Finished); // 1 WRINTE
+					BootstrapSchedule::<T>::kill();
 					log!(info, "bootstrap event finished");
 					let (mga_valuation, ksm_valuation) = Valuations::<T>::get();
 					// XykFunctionsTrait R: 11 W:12
@@ -168,13 +188,17 @@ pub mod pallet {
 	pub type Phase<T: Config> = StorageValue<_, BootstrapPhase, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn bootstap_pair)]
+	pub type BootstrapPair<T: Config> = StorageValue<_, TokenPair, OptionQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn valuations)]
 	pub type Valuations<T: Config> = StorageValue<_, (Balance, Balance), ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn config)]
 	pub type BootstrapSchedule<T: Config> =
-		StorageValue<_, (T::BlockNumber, u32, u32, (u128, u128)), OptionQuery>;
+		StorageValue<_, (TokenPair, T::BlockNumber, u32, u32, (u128, u128)), OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn minted_liquidity)]
@@ -257,6 +281,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn start_ido(
 			origin: OriginFor<T>,
+			pair: (TokenId, TokenId),
 			ido_start: T::BlockNumber,
 			whitelist_phase_length: u32,
 			public_phase_lenght: u32,
@@ -264,16 +289,29 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			ensure!(Phase::<T>::get() == BootstrapPhase::BeforeStart, Error::<T>::AlreadyStarted);
+			let token_pair = TokenPair::new(pair);
+			let ratio = if pair == token_pair.clone().into() {
+				max_ksm_to_mgx_ratio
+			} else {
+				(max_ksm_to_mgx_ratio.1, max_ksm_to_mgx_ratio.0)
+			};
+
+			ensure!(
+				matches!(BootstrapSchedule::<T>::get(), None) ||
+					matches!(BootstrapSchedule::<T>::get(), Some((pair,_,_,_,_)) if pair == token_pair),
+				Error::<T>::AlreadyStarted
+			);
+
+			ensure!(Phase::<T>::get() == BootstrapPhase::Finished, Error::<T>::AlreadyStarted);
 
 			ensure!(
 				ido_start > frame_system::Pallet::<T>::block_number(),
 				Error::<T>::BootstrapStartInThePast
 			);
 
-			ensure!(max_ksm_to_mgx_ratio.0 != 0, Error::<T>::WrongRatio);
+			ensure!(ratio.0 != 0, Error::<T>::WrongRatio);
 
-			ensure!(max_ksm_to_mgx_ratio.1 != 0, Error::<T>::WrongRatio);
+			ensure!(ratio.1 != 0, Error::<T>::WrongRatio);
 
 			ensure!(whitelist_phase_length > 0, Error::<T>::PhaseLengthCannotBeZero);
 
@@ -299,10 +337,11 @@ pub mod pallet {
 			);
 
 			BootstrapSchedule::<T>::put((
+				token_pair,
 				ido_start,
 				whitelist_phase_length,
 				public_phase_lenght,
-				max_ksm_to_mgx_ratio,
+				ratio,
 			));
 
 			Ok(().into())
@@ -408,6 +447,8 @@ pub mod pallet {
 		NothingToClaim,
 		/// no rewards to claim
 		WrongRatio,
+		/// Bootstrap exists
+		BootstrapExists,
 	}
 
 	#[pallet::event]
@@ -434,7 +475,7 @@ pub enum BootstrapPhase {
 
 impl Default for BootstrapPhase {
 	fn default() -> Self {
-		BootstrapPhase::BeforeStart
+		BootstrapPhase::Finished
 	}
 }
 
@@ -527,7 +568,7 @@ impl<T: Config> Pallet<T> {
 
 		let schedule = BootstrapSchedule::<T>::get();
 		ensure!(schedule.is_some(), Error::<T>::Unauthorized);
-		let (_, _, _, (ratio_nominator, ratio_denominator)) = schedule.unwrap();
+		let (token_pair, _, _, _, (ratio_nominator, ratio_denominator)) = schedule.unwrap();
 
 		<T as Config>::Currency::transfer(
 			token_id.into(),
