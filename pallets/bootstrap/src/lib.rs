@@ -113,7 +113,7 @@ pub mod pallet {
 		fn on_initialize(n: T::BlockNumber) -> Weight {
 			let pair = TokenPair::new((T::KSMTokenId::get(), T::MGATokenId::get()));
 			let block_nr = n.saturated_into::<BlockNrAsBalance>();
-			match ActiveSchedules::<T>::get(pair){
+			match ActiveSchedules::<T>::get(&pair){
 				Some(schedule) if schedule.get_phase(block_nr) == BootstrapPhase::Finished => {
 					log!(info, "bootstrap event finished");
 					let (mga_valuation, ksm_valuation) = Valuations::<T>::get();
@@ -133,6 +133,8 @@ pub mod pallet {
 						log!(error, "cannot create pool!");
 					}
 					// TODO: include cost of pool_create call
+					ActiveSchedules::<T>::remove(&pair);
+					ArchivedSchedules::<T>::insert(&pair,schedule); 
 					T::DbWeight::get().reads_writes(15, 13)
 				} 
 				_ => T::DbWeight::get().reads(2)
