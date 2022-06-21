@@ -10,6 +10,9 @@ use test_case::test_case;
 const FIRST_TOKEN_ID: TokenId = 0;
 const SECOND_TOKEN_ID: TokenId = 1;
 const TOKEN_PAIR: (TokenId, TokenId) = (FIRST_TOKEN_ID, SECOND_TOKEN_ID);
+const ORD_TOKEN_PAIR: TokenPair = TokenPair{first: FIRST_TOKEN_ID, second: SECOND_TOKEN_ID};
+
+
 const USER_ID: u128 = 0;
 const PROVISION_USER1_ID: u128 = 200;
 const PROVISION_USER2_ID: u128 = 201;
@@ -37,8 +40,8 @@ fn jump_to_whitelist_phase() {
 	let pool_exists_mock = MockPoolCreateApi::pool_exists_context();
 	pool_exists_mock.expect().return_const(false);
 	Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
-	Bootstrap::on_initialize(15_u32.into());
-	assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());
+	System::set_block_number(15_u32.into());
+	assert_eq!(BootstrapPhase::Whitelist, Bootstrap::phase(ORD_TOKEN_PAIR));
 }
 
 fn jump_to_public_phase() {
@@ -46,8 +49,8 @@ fn jump_to_public_phase() {
 	pool_exists_mock.expect().return_const(false);
 
 	Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
-	Bootstrap::on_initialize(25_u32.into());
-	assert_eq!(BootstrapPhase::Public, Phase::<Test>::get());
+	System::set_block_number(25_u32.into());
+	assert_eq!(BootstrapPhase::Public, Bootstrap::phase(ORD_TOKEN_PAIR));
 }
 
 #[test]
@@ -166,10 +169,13 @@ fn test_donation_with_more_tokens_than_available() {
 
 #[test]
 #[serial]
-fn test_prevent_provisions_in_before_start_phase() {
+fn test_prevent_provisions_in_before_start() {
 	new_test_ext().execute_with(|| {
 		set_up();
-		Phase::<Test>::put(BootstrapPhase::Finished);
+		let pool_exists_mock = MockPoolCreateApi::pool_exists_context();
+		pool_exists_mock.expect().return_const(false);
+		System::set_block_number(9);
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
 
 		assert_err!(
 			Bootstrap::provision(Origin::signed(USER_ID), KSMId::get(), INITIAL_AMOUNT * 2),
@@ -179,11 +185,30 @@ fn test_prevent_provisions_in_before_start_phase() {
 }
 
 #[test]
+#[ignore]
+#[serial]
+fn test_prevent_provisions_in_non_existing_bootstrap() {
+	// TODO when pair param is introduced
+	assert!(false);
+	// new_test_ext().execute_with(|| {
+	// 	set_up();
+	// 	assert_err!(
+	// 		Bootstrap::provision(Origin::signed(USER_ID), KSMId::get(), INITIAL_AMOUNT * 2),
+	// 		Error::<Test>::Unauthorized
+	// 	);
+	// });
+}
+
+#[test]
 #[serial]
 fn test_prevent_provisions_in_finished_phase() {
 	new_test_ext().execute_with(|| {
 		set_up();
-		Phase::<Test>::put(BootstrapPhase::Finished);
+		let pool_exists_mock = MockPoolCreateApi::pool_exists_context();
+		pool_exists_mock.expect().return_const(false);
+		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 10_u32.into(), 10, 10, DEFAULT_RATIO).unwrap();
+		System::set_block_number(100);
+
 		assert_err!(
 			Bootstrap::provision(Origin::signed(USER_ID), KSMId::get(), INITIAL_AMOUNT * 2),
 			Error::<Test>::Unauthorized
@@ -358,7 +383,7 @@ fn test_bootstrap_can_be_modified_only_before_its_started() {
 		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 20, DEFAULT_RATIO)
 			.unwrap();
 
-		Bootstrap::on_initialize(100_u32.into());
+		System::set_block_number(100_u32.into());
 
 		assert_err!(
 			Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 20, DEFAULT_RATIO),
@@ -366,8 +391,13 @@ fn test_bootstrap_can_be_modified_only_before_its_started() {
 		);
 
 		assert_eq!(
-			Some((TokenPair::new(TOKEN_PAIR), 100_u64, 10_u32, 20_u32, DEFAULT_RATIO)),
-			Bootstrap::config()
+			Schedule{
+				whitelist_start: 100_u128,
+				public_start: 110_u128,
+				finished: 130_u128,
+				ratio: DEFAULT_RATIO
+			},
+			Bootstrap::active_schedules(ORD_TOKEN_PAIR).unwrap()
 		);
 	});
 }
@@ -399,28 +429,26 @@ fn test_bootstrap_state_transitions() {
 		.unwrap();
 
 		for i in 1..BOOTSTRAP_WHITELIST_START {
+			System::set_block_number(i.into());
 			Bootstrap::on_initialize(i);
-			assert_eq!(Bootstrap::phase(), BootstrapPhase::Finished);
+			assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::BeforeStart);
 		}
-
-		Bootstrap::on_initialize(BOOTSTRAP_WHITELIST_START);
-		assert_eq!(Bootstrap::phase(), BootstrapPhase::Whitelist);
 
 		for i in BOOTSTRAP_WHITELIST_START..BOOTSTRAP_PUBLIC_START {
+			System::set_block_number(i.into());
 			Bootstrap::on_initialize(i);
-			assert_eq!(Bootstrap::phase(), BootstrapPhase::Whitelist);
+			assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::Whitelist);
 		}
-
-		Bootstrap::on_initialize(BOOTSTRAP_PUBLIC_START);
-		assert_eq!(Bootstrap::phase(), BootstrapPhase::Public);
 
 		for i in BOOTSTRAP_PUBLIC_START..BOOTSTRAP_FINISH {
+			System::set_block_number(i.into());
 			Bootstrap::on_initialize(i);
-			assert_eq!(Bootstrap::phase(), BootstrapPhase::Public);
+			assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::Public);
 		}
 
+		System::set_block_number(BOOTSTRAP_FINISH);
 		Bootstrap::on_initialize(BOOTSTRAP_FINISH);
-		assert_eq!(Bootstrap::phase(), BootstrapPhase::Finished);
+		assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::Finished);
 	});
 }
 
@@ -449,11 +477,13 @@ fn test_bootstrap_state_transitions_when_on_initialized_is_not_called() {
 		)
 		.unwrap();
 
-		assert_eq!(Bootstrap::phase(), BootstrapPhase::Finished);
+		assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::BeforeStart);
+		System::set_block_number(120);
 		Bootstrap::on_initialize(120);
-		assert_eq!(Bootstrap::phase(), BootstrapPhase::Public);
+		assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::Public);
+		System::set_block_number(200);
 		Bootstrap::on_initialize(200);
-		assert_eq!(Bootstrap::phase(), BootstrapPhase::Finished);
+		assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::Finished);
 	});
 }
 
@@ -544,9 +574,11 @@ fn test_crate_pool_is_called_with_proper_arguments_after_bootstrap_finish() {
 		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
 			.unwrap();
 
+		System::set_block_number(110_u32.into());
 		Bootstrap::on_initialize(110_u32.into());
 		Bootstrap::provision(Origin::signed(USER_ID), MGAId::get(), MGA_PROVISON).unwrap();
 		Bootstrap::provision(Origin::signed(USER_ID), KSMId::get(), KSM_PROVISON).unwrap();
+		System::set_block_number(120_u32.into());
 		Bootstrap::on_initialize(120_u32.into());
 	});
 }
@@ -562,12 +594,6 @@ fn test_cannot_claim_rewards_when_bootstrap_is_not_finished() {
 
 		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
 			.unwrap();
-
-		Bootstrap::on_initialize(100_u32.into());
-		assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());
-
-		Bootstrap::on_initialize(110_u32.into());
-		assert_eq!(BootstrapPhase::Public, Phase::<Test>::get());
 
 		assert_err!(
 			Bootstrap::claim_rewards(Origin::signed(USER_ID)),
@@ -605,17 +631,18 @@ fn test_rewards_are_distributed_properly_with_single_user() {
 		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
 			.unwrap();
 
-		Bootstrap::on_initialize(100_u32.into());
-		assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());
+		System::set_block_number(100_u32.into());
+		assert_eq!(BootstrapPhase::Whitelist, Bootstrap::phase(ORD_TOKEN_PAIR));
 
-		Bootstrap::on_initialize(110_u32.into());
-		assert_eq!(BootstrapPhase::Public, Phase::<Test>::get());
+		System::set_block_number(110_u32.into());
+		assert_eq!(BootstrapPhase::Public, Bootstrap::phase(ORD_TOKEN_PAIR));
 
 		Bootstrap::provision(Origin::signed(USER_ID), MGAId::get(), MGA_PROVISON).unwrap();
 		Bootstrap::provision(Origin::signed(USER_ID), KSMId::get(), KSM_PROVISON).unwrap();
 
+		System::set_block_number(120_u32.into());
 		Bootstrap::on_initialize(120_u32.into());
-		assert_eq!(BootstrapPhase::Finished, Phase::<Test>::get());
+		assert_eq!(BootstrapPhase::Finished, Bootstrap::phase(ORD_TOKEN_PAIR));
 
 		let (mga_valuation, ksm_valuation) = Bootstrap::valuations();
 		let liquidity_token_id = *(liq_token_id.lock().unwrap());
@@ -680,11 +707,11 @@ fn test_rewards_are_distributed_properly_with_multiple_user() {
 		Bootstrap::start_ido(Origin::root(), TOKEN_PAIR, 100_u32.into(), 10, 10, DEFAULT_RATIO)
 			.unwrap();
 
-		Bootstrap::on_initialize(100_u32.into());
-		assert_eq!(BootstrapPhase::Whitelist, Phase::<Test>::get());
+		System::set_block_number(100_u32.into());
+		assert_eq!(BootstrapPhase::Whitelist, Bootstrap::phase(ORD_TOKEN_PAIR));
 
-		Bootstrap::on_initialize(110_u32.into());
-		assert_eq!(BootstrapPhase::Public, Phase::<Test>::get());
+		System::set_block_number(110_u32.into());
+		assert_eq!(BootstrapPhase::Public, Bootstrap::phase(ORD_TOKEN_PAIR));
 
 		Bootstrap::transfer(MGAId::get(), USER_ID.into(), ANOTHER_USER_ID.into(), 500_000).unwrap();
 		Bootstrap::transfer(KSMId::get(), USER_ID.into(), ANOTHER_USER_ID.into(), 500_000).unwrap();
@@ -718,8 +745,9 @@ fn test_rewards_are_distributed_properly_with_multiple_user() {
 			.iter()
 			.any(|record| record.event == provisioned_ev(KSMId::get(), ANOTHER_USER_KSM_PROVISON)));
 
+		System::set_block_number(120_u32.into());
 		Bootstrap::on_initialize(120_u32.into());
-		assert_eq!(BootstrapPhase::Finished, Phase::<Test>::get());
+		assert_eq!(BootstrapPhase::Finished, Bootstrap::phase(ORD_TOKEN_PAIR));
 
 		let (mga_valuation, ksm_valuation) = Bootstrap::valuations();
 		assert_eq!(mga_valuation, 500_000);
@@ -798,7 +826,7 @@ fn dont_allow_for_provision_in_vested_tokens_without_dedicated_extrinsic() {
 			&USER_ID,
 			MGAId::get(),
 			mga_amount,
-			100_u32.into(),
+			1_000_000_000_u32.into(),
 		)
 		.unwrap();
 
@@ -832,7 +860,7 @@ fn successful_vested_provision_using_vested_tokens_only_when_user_has_both_veste
 		jump_to_public_phase();
 
 		let provision_amount = 10_000;
-		let lock: u128 = 150;
+		let lock: u128 = 151;
 
 		<Test as Config>::VestingProvider::lock_tokens(
 			&USER_ID,
@@ -867,7 +895,7 @@ fn successful_vested_provision_is_stored_properly_in_storage() {
 		jump_to_public_phase();
 
 		let mga_amount = Bootstrap::balance(MGAId::get(), USER_ID);
-		let lock: u128 = 150;
+		let lock: u128 = 151;
 
 		<Test as Config>::VestingProvider::lock_tokens(
 			&USER_ID,
@@ -890,7 +918,7 @@ fn successful_merged_vested_provision_is_stored_properly_in_storage() {
 		jump_to_public_phase();
 
 		let mga_amount = Bootstrap::balance(MGAId::get(), USER_ID);
-		let first_lock: u128 = 150;
+		let first_lock: u128 = 151;
 		let first_lock_amount = mga_amount / 2;
 		let second_lock: u128 = 300;
 		let second_lock_amount = mga_amount - first_lock_amount;
@@ -987,8 +1015,10 @@ fn vested_provision_included_in_valuation() {
 		assert_eq!(mga_valuation, 1_000_000);
 		assert_eq!(ksm_valuation, 100);
 
+		System::set_block_number(100_u32.into());
 		Bootstrap::on_initialize(100_u32.into());
-		assert_eq!(BootstrapPhase::Finished, Phase::<Test>::get());
+
+		assert_eq!(BootstrapPhase::Finished, Bootstrap::phase(ORD_TOKEN_PAIR));
 		Bootstrap::claim_rewards(Origin::signed(PROVISION_USER1_ID)).unwrap();
 		Bootstrap::claim_rewards(Origin::signed(PROVISION_USER2_ID)).unwrap();
 
@@ -1026,8 +1056,9 @@ fn multi_provisions() {
 		assert_eq!(mga_valuation, 400_000);
 		assert_eq!(ksm_valuation, 40);
 
+		System::set_block_number(100_u32.into());
 		Bootstrap::on_initialize(100_u32.into());
-		assert_eq!(BootstrapPhase::Finished, Phase::<Test>::get());
+		assert_eq!(BootstrapPhase::Finished, Bootstrap::phase(ORD_TOKEN_PAIR));
 		Bootstrap::claim_rewards(Origin::signed(PROVISION_USER1_ID)).unwrap();
 		Bootstrap::claim_rewards(Origin::signed(PROVISION_USER2_ID)).unwrap();
 
@@ -1170,8 +1201,9 @@ fn test_multi_provisions(
 		// ACT
 		provisions(provisions_list);
 
+		System::set_block_number(100_u32.into());
 		Bootstrap::on_initialize(100_u32.into());
-		assert_eq!(BootstrapPhase::Finished, Phase::<Test>::get());
+		assert_eq!(BootstrapPhase::Finished, Bootstrap::phase(ORD_TOKEN_PAIR));
 
 		if user1_has_provisions {
 			Bootstrap::claim_rewards(Origin::signed(PROVISION_USER1_ID)).unwrap();
@@ -1193,3 +1225,4 @@ fn test_multi_provisions(
 		assert_eq!(user2_rewards.1, Bootstrap::locked_balance(liq_token_id, PROVISION_USER2_ID));
 	})
 }
+// reverse ratio

@@ -17,7 +17,7 @@ use scale_info::TypeInfo;
 use sp_arithmetic::helpers_128bit::multiply_by_rational;
 use sp_bootstrap::PoolCreateApi;
 use sp_core::U256;
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, SaturatedConversion};
 use sp_std::prelude::*;
 
 #[cfg(test)]
@@ -67,6 +67,28 @@ impl From<TokenPair> for (TokenId, TokenId) {
 	}
 }
 
+#[derive(PartialEq, Clone, Encode, Decode, TypeInfo, Debug)]
+pub struct Schedule {
+	whitelist_start: BlockNrAsBalance,
+	public_start: BlockNrAsBalance,
+	finished: BlockNrAsBalance,
+	ratio: (u128, u128),
+}
+
+impl Schedule {
+	pub fn get_phase(&self, n: BlockNrAsBalance) -> BootstrapPhase {
+		if n >= 0 && n < self.whitelist_start {
+			return BootstrapPhase::BeforeStart;
+		} if n >= self.whitelist_start && n < self.public_start {
+			return BootstrapPhase::Whitelist;
+		} if n >= self.public_start && n < self.finished {
+			return BootstrapPhase::Public;
+		} else {
+			return BootstrapPhase::Finished;
+		}
+	}
+}
+
 pub type BlockNrAsBalance = Balance;
 
 pub enum ProvisionKind {
@@ -89,20 +111,10 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			let phase = Phase::<T>::get(); // R:1
-
-			if let Some((token_pair, start, whitelist_length, public_length, _)) =
-				BootstrapSchedule::<T>::get()
-			{
-				// R:1
-				// NOTE: arythmetics protected by invariant check in Bootstrap::start_ido
-				let whitelist_start = start;
-				let public_start = start + whitelist_length.into();
-				let finished = start + whitelist_length.into() + public_length.into();
-
-				if n >= finished {
-					Phase::<T>::put(BootstrapPhase::Finished); // 1 WRINTE
-					BootstrapSchedule::<T>::kill();
+			let pair = TokenPair::new((T::KSMTokenId::get(), T::MGATokenId::get()));
+			let block_nr = n.saturated_into::<BlockNrAsBalance>();
+			match ActiveSchedules::<T>::get(pair){
+				Some(schedule) if schedule.get_phase(block_nr) == BootstrapPhase::Finished => {
 					log!(info, "bootstrap event finished");
 					let (mga_valuation, ksm_valuation) = Valuations::<T>::get();
 					// XykFunctionsTrait R: 11 W:12
@@ -122,19 +134,8 @@ pub mod pallet {
 					}
 					// TODO: include cost of pool_create call
 					T::DbWeight::get().reads_writes(15, 13)
-				} else if n >= public_start {
-					Phase::<T>::put(BootstrapPhase::Public);
-					log!(info, "starting public phase");
-					T::DbWeight::get().reads_writes(2, 1)
-				} else if n >= whitelist_start {
-					log!(info, "starting whitelist phase");
-					Phase::<T>::put(BootstrapPhase::Whitelist);
-					T::DbWeight::get().reads_writes(2, 1)
-				} else {
-					T::DbWeight::get().reads(2)
-				}
-			} else {
-				T::DbWeight::get().reads(2)
+				} 
+				_ => T::DbWeight::get().reads(2)
 			}
 		}
 	}
@@ -183,9 +184,9 @@ pub mod pallet {
 	pub type WhitelistedAccount<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, (), ValueQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn phase)]
-	pub type Phase<T: Config> = StorageValue<_, BootstrapPhase, ValueQuery>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn phase)]
+	// pub type Phase<T: Config> = StorageValue<_, BootstrapPhase, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn bootstap_pair)]
@@ -195,10 +196,21 @@ pub mod pallet {
 	#[pallet::getter(fn valuations)]
 	pub type Valuations<T: Config> = StorageValue<_, (Balance, Balance), ValueQuery>;
 
+	// TO BE REMOVED
 	#[pallet::storage]
 	#[pallet::getter(fn config)]
 	pub type BootstrapSchedule<T: Config> =
 		StorageValue<_, (TokenPair, T::BlockNumber, u32, u32, (u128, u128)), OptionQuery>;
+	
+	#[pallet::storage]
+	#[pallet::getter(fn active_schedules)]
+	pub type ActiveSchedules<T: Config> =
+		StorageMap<_, Twox64Concat, TokenPair, Schedule, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn archived_scheduled)]
+	pub type ArchivedSchedules<T: Config> =
+		StorageMap<_, Twox64Concat, TokenPair, Schedule, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn minted_liquidity)]
@@ -290,6 +302,8 @@ pub mod pallet {
 			ensure_root(origin)?;
 
 			let token_pair = TokenPair::new(pair);
+			let n = <frame_system::Pallet<T>>::block_number().saturated_into::<BlockNrAsBalance>();
+
 			let ratio = if pair == token_pair.clone().into() {
 				max_ksm_to_mgx_ratio
 			} else {
@@ -297,12 +311,10 @@ pub mod pallet {
 			};
 
 			ensure!(
-				matches!(BootstrapSchedule::<T>::get(), None) ||
-					matches!(BootstrapSchedule::<T>::get(), Some((pair,_,_,_,_)) if pair == token_pair),
+				matches!(Self::active_schedules(&token_pair), None) ||
+				matches!(Self::active_schedules(&token_pair), Some(s) if s.get_phase(n) == BootstrapPhase::BeforeStart),
 				Error::<T>::AlreadyStarted
 			);
-
-			ensure!(Phase::<T>::get() == BootstrapPhase::Finished, Error::<T>::AlreadyStarted);
 
 			ensure!(
 				ido_start > frame_system::Pallet::<T>::block_number(),
@@ -317,32 +329,35 @@ pub mod pallet {
 
 			ensure!(public_phase_lenght > 0, Error::<T>::PhaseLengthCannotBeZero);
 
-			ensure!(
-				ido_start
-					.checked_add(&whitelist_phase_length.into())
-					.and_then(|whiteslist_start| whiteslist_start
-						.checked_add(&public_phase_lenght.into()))
-					.is_some(),
-				Error::<T>::MathOverflow
-			);
+			let whitelist_start = ido_start.saturated_into::<BlockNrAsBalance>();
 
-			ensure!(
-				ido_start.checked_add(&whitelist_phase_length.into()).is_some(),
-				Error::<T>::MathOverflow
-			);
+			let public_start = ido_start
+				.checked_add(&whitelist_phase_length.into())
+				.ok_or(Error::<T>::MathOverflow)?
+				.saturated_into::<BlockNrAsBalance>();
+
+			let finished = ido_start
+				.checked_add(&whitelist_phase_length.into())
+				.ok_or(Error::<T>::MathOverflow)?
+				.checked_add(&public_phase_lenght.into())
+				.ok_or(Error::<T>::MathOverflow)?
+				.saturated_into::<BlockNrAsBalance>();
+
 
 			ensure!(
 				!T::PoolCreateApi::pool_exists(T::KSMTokenId::get(), T::MGATokenId::get()),
 				Error::<T>::PoolAlreadyExists
 			);
 
-			BootstrapSchedule::<T>::put((
-				token_pair,
-				ido_start,
-				whitelist_phase_length,
-				public_phase_lenght,
-				ratio,
-			));
+			ActiveSchedules::<T>::insert(
+				token_pair, 
+				Schedule{
+					public_start,
+					whitelist_start,
+					finished,
+					ratio
+				}
+			);
 
 			Ok(().into())
 		}
@@ -353,7 +368,8 @@ pub mod pallet {
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 
-			ensure!(Self::phase() == BootstrapPhase::Finished, Error::<T>::NotFinishedYet);
+			let pair = TokenPair::new((T::KSMTokenId::get(), T::MGATokenId::get()));
+			ensure!(Self::phase(pair) == BootstrapPhase::Finished, Error::<T>::NotFinishedYet);
 
 			let (liq_token_id, _) = Self::minted_liquidity();
 
@@ -480,6 +496,17 @@ impl Default for BootstrapPhase {
 }
 
 impl<T: Config> Pallet<T> {
+	fn phase(pair: TokenPair) -> BootstrapPhase{
+		let n = <frame_system::Pallet<T>>::block_number().saturated_into::<BlockNrAsBalance>();
+		if let Some(s) = Self::active_schedules(&pair) {
+			s.get_phase(n)
+		} else if let Some(s) = Self::archived_scheduled(&pair) {
+			s.get_phase(n)
+		} else {
+			BootstrapPhase::BeforeStart
+		}
+	}
+
 	fn is_whitelisted(account: &T::AccountId) -> bool {
 		WhitelistedAccount::<T>::try_get(account).is_ok()
 	}
@@ -553,10 +580,15 @@ impl<T: Config> Pallet<T> {
 		amount: Balance,
 		is_vested: ProvisionKind,
 	) -> DispatchResult {
+		let pair = TokenPair::new((T::KSMTokenId::get(), T::MGATokenId::get()));
+		let n = <frame_system::Pallet<T>>::block_number().saturated_into::<BlockNrAsBalance>();
 		let is_ksm = token_id == T::KSMTokenId::get();
 		let is_mga = token_id == T::MGATokenId::get();
-		let is_public_phase = Phase::<T>::get() == BootstrapPhase::Public;
-		let is_whitelist_phase = Phase::<T>::get() == BootstrapPhase::Whitelist;
+
+		let schedule = Self::active_schedules(pair);
+
+		let is_public_phase = schedule.clone().map(|s| s.get_phase(n) == BootstrapPhase::Public).unwrap_or(false);
+		let is_whitelist_phase = schedule.clone().map(|s| s.get_phase(n) == BootstrapPhase::Whitelist).unwrap_or(false);
 		let am_i_whitelisted = Self::is_whitelisted(&sender);
 
 		ensure!(is_ksm || is_mga, Error::<T>::UnsupportedTokenId);
@@ -566,9 +598,8 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::Unauthorized
 		);
 
-		let schedule = BootstrapSchedule::<T>::get();
-		ensure!(schedule.is_some(), Error::<T>::Unauthorized);
-		let (token_pair, _, _, _, (ratio_nominator, ratio_denominator)) = schedule.unwrap();
+		// TODO refactor
+		let Schedule{ratio:(ratio_nominator, ratio_denominator), ..} = schedule.unwrap();
 
 		<T as Config>::Currency::transfer(
 			token_id.into(),
