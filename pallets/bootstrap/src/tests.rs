@@ -447,7 +447,12 @@ fn test_bootstrap_state_transitions() {
 		}
 
 		System::set_block_number(BOOTSTRAP_FINISH);
+		assert!(Bootstrap::active_schedules(ORD_TOKEN_PAIR).is_some());
+		assert!(Bootstrap::archived_scheduled(ORD_TOKEN_PAIR).is_none());
 		Bootstrap::on_initialize(BOOTSTRAP_FINISH);
+		assert!(Bootstrap::active_schedules(ORD_TOKEN_PAIR).is_none());
+		assert!(Bootstrap::archived_scheduled(ORD_TOKEN_PAIR).is_some());
+
 		assert_eq!(Bootstrap::phase(ORD_TOKEN_PAIR), BootstrapPhase::Finished);
 	});
 }
@@ -1225,4 +1230,5 @@ fn test_multi_provisions(
 		assert_eq!(user2_rewards.1, Bootstrap::locked_balance(liq_token_id, PROVISION_USER2_ID));
 	})
 }
+
 // reverse ratio
