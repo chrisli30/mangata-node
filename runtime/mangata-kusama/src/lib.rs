@@ -532,6 +532,26 @@ impl Contains<TokenId> for TestTokensFilter {
 	}
 }
 
+pub struct AssetMetadataMutation;
+impl AssetMetadataMutationTrait for AssetMetadataMutation {
+	fn set_asset_info(
+		asset: TokenId,
+		name: Option<Vec<u8>>,
+		symbol: Option<Vec<u8>>,
+		description: Option<Vec<u8>>,
+		decimals: Option<u32>,
+	) -> DispatchResult {
+		pallet_assets_info::Pallet::<Runtime>::set_asset_info(
+			asset,
+			name,
+			symbol,
+			description,
+			decimals,
+		)?;
+		Ok(())
+	}
+}
+
 impl pallet_xyk::Config for Runtime {
 	type Event = Event;
 	type ActivationReservesProvider = MultiPurposeLiquidity;
@@ -548,6 +568,7 @@ impl pallet_xyk::Config for Runtime {
 	type VestingProvider = Vesting;
 	type DisallowedPools = Bootstrap;
 	type DisabledTokens = TestTokensFilter;
+	type AssetMetadataMutation = AssetMetadataMutation;
 	type WeightInfo = weights::pallet_xyk_weights::ModuleWeight<Runtime>;
 }
 
@@ -622,6 +643,7 @@ pub struct ThreeCurrencyOnChargeAdapter<C, OU, T1, T2, T3, SF2, SF3>(
 );
 
 use frame_support::{
+	pallet_prelude::DispatchResult,
 	traits::{ExistenceRequirement, Imbalance, WithdrawReasons},
 	unsigned::TransactionValidityError,
 	weights::ConstantMultiplier,
@@ -637,6 +659,7 @@ use pallet_transaction_payment::OnChargeTransaction;
 type NegativeImbalanceOf<C, T> =
 	<C as MultiTokenCurrency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
+use mp_traits::AssetMetadataMutationTrait;
 use orml_tokens::MultiTokenImbalanceWithZeroTrait;
 use orml_traits::location::AbsoluteReserveProvider;
 /// Default implementation for a Currency and an OnUnbalanced handler.
