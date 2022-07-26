@@ -91,6 +91,7 @@ pub const KAR_TOKEN_ID: TokenId = 6;
 pub const TUR_TOKEN_ID: TokenId = 7;
 
 pub mod constants;
+mod migrations;
 mod weights;
 pub mod xcm_config;
 
@@ -135,18 +136,25 @@ pub struct MangataMigrations;
 
 impl OnRuntimeUpgrade for MangataMigrations {
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
-		pallet_bootstrap::migrations::v1::MigrateToV1::<Runtime>::on_runtime_upgrade()
+		let mut weight = 0;
+		weight += pallet_bootstrap::migrations::v1::MigrateToV1::<Runtime>::on_runtime_upgrade();
+		weight += migrations::asset_registry::AssetRegistryMigration::on_runtime_upgrade();
+		weight
 	}
 
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<(), &'static str> {
 		pallet_bootstrap::migrations::v1::MigrateToV1::<Runtime>::pre_upgrade();
+		migrations::asset_registry::AssetRegistryMigration::pre_upgrade()
+			.expect("try-runtime pre_upgrade for AssetRegistryMigration failed!!");
 		Ok(())
 	}
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade() -> Result<(), &'static str> {
 		pallet_bootstrap::migrations::v1::MigrateToV1::<Runtime>::post_upgrade();
+		migrations::asset_registry::AssetRegistryMigration::post_upgrade()
+			.expect("try-runtime post_upgrade for AssetRegistryMigration failed!!");
 		Ok(())
 	}
 }
@@ -180,10 +188,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("mangata-parachain"),
 	impl_name: create_runtime_str!("mangata-parachain"),
 	authoring_version: 7,
-	spec_version: 7,
+	spec_version: 8,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 7,
+	transaction_version: 8,
 	state_version: 0,
 };
 
