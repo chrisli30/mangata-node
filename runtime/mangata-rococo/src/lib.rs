@@ -1195,6 +1195,14 @@ impl_runtime_apis! {
 			// initialize has been called already so we can fetch number from the storage
 			System::set_block_seed(&seed);
 		}
+
+		fn store_txs(txs: Vec<Vec<u8>>){
+			System::store_txs(txs);
+		}
+
+		fn pop_txs() -> Vec<Vec<u8>>{
+			System::pop_txs()
+		}
 	}
 
 	impl xyk_runtime_api::XykApi<Block, Balance, TokenId, AccountId> for Runtime {
