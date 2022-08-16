@@ -1613,6 +1613,10 @@ impl_runtime_apis! {
 		fn pop_txs() -> Vec<Vec<u8>>{
 			todo!()
 		}
+
+		fn create_enqueue_txs_inherent(_txs: Vec<Vec<u8>>) -> <Block as BlockT>::Extrinsic{
+			todo!()
+		}
 	}
 
 	impl xyk_runtime_api::XykApi<Block, Balance, TokenId, AccountId> for Runtime {

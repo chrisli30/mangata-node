@@ -1203,6 +1203,11 @@ impl_runtime_apis! {
 		fn pop_txs() -> Vec<Vec<u8>>{
 			System::pop_txs()
 		}
+
+		fn create_enqueue_txs_inherent(txs: Vec<Vec<u8>>) -> <Block as BlockT>::Extrinsic{
+			UncheckedExtrinsic::new_unsigned(
+					Call::System(frame_system::Call::enqueue_txs{txs: txs}))
+		}
 	}
 
 	impl xyk_runtime_api::XykApi<Block, Balance, TokenId, AccountId> for Runtime {
