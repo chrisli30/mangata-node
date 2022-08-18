@@ -213,42 +213,29 @@ where
 	let best = client.info().best_hash;
 	let at = BlockId::<Block>::hash(best);
 
-	let previous_block_header = client.header(at).unwrap().unwrap();
+	let skip_count = api.execute_in_transaction(|api| {
+		// store deserialized data and revert state modification caused by 'get_info' call
+		let count: u32 = api
+			.pop_txs(&at)
+			.unwrap()
+			.into_iter()
+			.map(|tx_data| Block::Extrinsic::decode(&mut tx_data.as_slice()).unwrap())
+			.map(|tx| api.get_signer(&at, tx.clone()).unwrap_or_default())
+			.filter(|signer_info| {
+				if let Some((who, _nonce)) = signer_info {
+					<AccountId>::decode(&mut &<[u8; 32]>::from(who.clone())[..]).unwrap() ==
+						signer_id
+				} else {
+					false
+				}
+			})
+			.count()
+			.try_into()
+			.unwrap();
 
-	let best_block_extrinsics: Vec<Block::Extrinsic> = client
-		.block_body(&at)
-		.map_err(|e| {
-			CallError::Custom(ErrorObject::owned(
-				Error::RuntimeError.into(),
-				"UFailed to get parent blocks extrinsics.",
-				Some(e.to_string()),
-			))
-		})
-		.unwrap()
-		.unwrap_or_default();
+		TransactionOutcome::Rollback(count)
+	});
 
-	let result = best_block_extrinsics
-		.into_iter()
-		.take((*previous_block_header.count()).saturated_into::<usize>())
-		.map(|tx|
-         //TODO limit to unexecuted txs
-             api.execute_in_transaction(|api| {
-                    // store deserialized data and revert state modification caused by 'get_info' call
-                    match api.get_signer(&at, tx.clone()) {
-                        Ok(result) => TransactionOutcome::Rollback(result),
-                        Err(_) => TransactionOutcome::Rollback(None),
-                    }
-            }))
-		.filter(|result| {
-			if let Some((who, _nonce)) = result {
-				<AccountId>::decode(&mut &<[u8; 32]>::from(who.clone())[..]).unwrap() == signer_id
-			} else {
-				false
-			}
-		})
-		.count()
-		.try_into()
-		.unwrap();
-	log::debug!(target: "rpc_nonce", "advance nonce for {} : {}", signer_id, result);
-	result
+	log::debug!(target: "rpc_nonce", "advance nonce for {} : {}", signer_id, skip_count);
+	skip_count
 }

@@ -32,6 +32,9 @@ start: start-para start-relay
 
 restart: stop start-para start-relay
 
+reload: 
+	docker-compose --env-file env/${ENV} -f parachain.yml restart para_alice para_bob
+
 logs-para:
 	docker-compose -f parachain.yml logs -f
 	
