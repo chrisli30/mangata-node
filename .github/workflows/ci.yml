@@ -564,12 +564,9 @@ jobs:
         working-directory: launch
         run: yarn up
 
-      - name: Install e2e dependencies
+      - name: Install dependencies
         working-directory: e2eTests
-        run: |
-          eval `ssh-agent -s`
-          ssh-add - <<< '${{ secrets.MANGATA_SDK_ACCESS_TOKEN }}'
-          yarn
+        run: yarn
 
       - name: Docker ps
         run: docker ps
