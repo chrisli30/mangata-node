@@ -566,8 +566,6 @@ jobs:
 
       - name: Install dependencies
         working-directory: e2eTests
-        env: 
-          GITHUB_TOKEN: ${{ secrets.MANGATA_SDK_ACCESS_TOKEN }}
         run: yarn
 
       - name: Docker ps
