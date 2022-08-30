@@ -566,11 +566,14 @@ jobs:
 
       - name: Install dependencies
         working-directory: e2eTests
-        run: yarn
+        run: |
+          eval `ssh-agent -s`
+          ssh-add - <<< '${{ secrets.MANGATA_SDK_ACCESS_TOKEN }}'
+          yarn
 
       - name: Docker ps
         run: docker ps
-        
+
       - name: Sleep for 2 minutes
         run: sleep 120s #close buffers of videos.
 
