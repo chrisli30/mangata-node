@@ -34,6 +34,7 @@ on:
 env:
   DOCKER_BUILDER_IMAGE: mangatasolutions/node-builder:0.2
   DISABLE_TTY: 1
+  SKIP_HUSKY: 1
 
 jobs:
 
