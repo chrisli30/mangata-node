@@ -564,7 +564,7 @@ jobs:
         working-directory: launch
         run: yarn up
 
-      - name: Install dependencies
+      - name: Install e2e dependencies
         working-directory: e2eTests
         run: |
           eval `ssh-agent -s`
