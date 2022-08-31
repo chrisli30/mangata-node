@@ -405,7 +405,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: e2eTests
-        run: yarn
+        run: yarn install --network-concurrency 1
 
       - name: Install parachain launch
         working-directory: launch
@@ -560,7 +560,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: e2eTests
-        run: yarn
+        run: yarn install --network-concurrency 1
 
       - name: Install parachain launch
         working-directory: launch
