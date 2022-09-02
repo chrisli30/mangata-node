@@ -123,7 +123,7 @@ where
 			))
 		})?;
 
-		for _ in 0..number_of_delayed_txs(self.client.clone(), account.clone()) {
+		for _ in 0..api.enque_txs_count(account.clone()) {
 			nonce += traits::One::one();
 		}
 
@@ -196,46 +196,4 @@ where
 	}
 
 	current_nonce
-}
-
-fn number_of_delayed_txs<C, Block, AccountId>(client: Arc<C>, signer_id: AccountId) -> u32
-where
-	C: HeaderBackend<Block>,
-	C: BlockBackend<Block>,
-	C: Send + Sync + 'static,
-	C: ProvideRuntimeApi<Block>,
-	C::Api: BlockBuilder<Block>,
-	C::Api: VerApi<Block>,
-	Block: BlockT,
-	AccountId: Clone + std::fmt::Display + Codec + std::cmp::PartialEq,
-{
-	let api = client.runtime_api();
-	let best = client.info().best_hash;
-	let at = BlockId::<Block>::hash(best);
-
-	let skip_count = api.execute_in_transaction(|api| {
-		// store deserialized data and revert state modification caused by 'get_info' call
-		let count: u32 = api
-			.pop_txs(&at)
-			.unwrap()
-			.into_iter()
-			.map(|tx_data| Block::Extrinsic::decode(&mut tx_data.as_slice()).unwrap())
-			.map(|tx| api.get_signer(&at, tx.clone()).unwrap_or_default())
-			.filter(|signer_info| {
-				if let Some((who, _nonce)) = signer_info {
-					<AccountId>::decode(&mut &<[u8; 32]>::from(who.clone())[..]).unwrap() ==
-						signer_id
-				} else {
-					false
-				}
-			})
-			.count()
-			.try_into()
-			.unwrap();
-
-		TransactionOutcome::Rollback(count)
-	});
-
-	log::debug!(target: "rpc_nonce", "advance nonce for {} : {}", signer_id, skip_count);
-	skip_count
 }

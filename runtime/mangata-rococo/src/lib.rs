@@ -1176,15 +1176,15 @@ impl_runtime_apis! {
 			System::set_block_seed(&seed);
 		}
 
-		fn store_txs(txs: Vec<Vec<u8>>){
-			System::store_txs(txs);
+		fn enqueued_txs_count(acc: sp_runtime::AccountId32){
+			System::enqueued_txs_count(acc);
 		}
 
-		fn pop_txs() -> Vec<Vec<u8>>{
-			System::pop_txs()
+		fn pop_tx() -> Option<Vec<u8>>{
+			System::pop_txs(1).get(0).cloned()
 		}
 
-		fn create_enqueue_txs_inherent(txs: Vec<Vec<u8>>) -> <Block as BlockT>::Extrinsic{
+		fn create_enqueue_txs_inherent(txs: Vec<sp_ver::EnqueuedTx>) -> <Block as BlockT>::Extrinsic{
 			UncheckedExtrinsic::new_unsigned(
 					Call::System(frame_system::Call::enqueue_txs{txs: txs}))
 		}
