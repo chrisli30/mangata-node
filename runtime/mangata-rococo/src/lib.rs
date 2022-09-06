@@ -1157,7 +1157,8 @@ impl_runtime_apis! {
 			if let Some(sig) = tx.signature.clone(){
 				let nonce: frame_system::CheckNonce<_> = sig.2.4;
 				<Runtime as frame_system::Config>::Lookup::lookup(sig.0)
-					.map(|addr| Some((addr, nonce.0))).expect("unknown address for signed extrinsic")
+					.ok()
+					.and_then(|addr| Some((addr, nonce.0)))
 			}else{
 				None
 			}
