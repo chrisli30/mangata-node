@@ -1176,17 +1176,28 @@ impl_runtime_apis! {
 			System::set_block_seed(&seed);
 		}
 
-		fn enqueued_txs_count(acc: sp_runtime::AccountId32){
-			System::enqueued_txs_count(acc);
-		}
 
 		fn pop_tx() -> Option<Vec<u8>>{
 			System::pop_txs(1).get(0).cloned()
 		}
 
-		fn create_enqueue_txs_inherent(txs: Vec<sp_ver::EnqueuedTx>) -> <Block as BlockT>::Extrinsic{
+		fn create_enqueue_txs_inherent(txs: Vec<<Block as BlockT>::Extrinsic>) -> <Block as BlockT>::Extrinsic{
 			UncheckedExtrinsic::new_unsigned(
-					Call::System(frame_system::Call::enqueue_txs{txs: txs}))
+					Call::System(frame_system::Call::enqueue_txs{txs:
+						txs.into_iter()
+							.map(|tx| (
+									tx.signature.clone().and_then(|sig|
+										<Runtime as frame_system::Config>::Lookup::lookup(sig.0).ok()
+									),
+									tx.encode())
+							).collect()}))
+		}
+	}
+
+	impl ver_api::VerNonceApi<Block, AccountId> for Runtime {
+		fn enqueued_txs_count(acc: AccountId) -> u64 {
+
+			System::enqueued_txs_count(&acc) as u64
 		}
 	}
 

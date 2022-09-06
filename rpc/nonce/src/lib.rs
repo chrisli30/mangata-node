@@ -123,7 +123,10 @@ where
 			))
 		})?;
 
-		for _ in 0..api.enque_txs_count(account.clone()) {
+		for _ in 0..api.enqueued_txs_count(
+			&at,
+			sp_runtime::AccountId32::decode(&mut &<[u8; 32]>::from(account.clone())[..]).unwrap(),
+		) {
 			nonce += traits::One::one();
 		}
 
