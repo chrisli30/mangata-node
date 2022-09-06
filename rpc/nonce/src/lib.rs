@@ -43,7 +43,7 @@ pub use frame_system_rpc_runtime_api::AccountNonceApi;
 use sc_client_api::BlockBackend;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::TransactionOutcome;
-use ver_api::VerApi;
+use ver_api::VerNonceApi;
 
 /// System RPC methods.
 #[rpc(client, server)]
@@ -104,7 +104,7 @@ where
 	C: ProvideRuntimeApi<Block>,
 	C::Api: AccountNonceApi<Block, AccountId, Index>,
 	C::Api: BlockBuilder<Block>,
-	C::Api: VerApi<Block>,
+	C::Api: VerNonceApi<Block, AccountId>,
 	P: TransactionPool + 'static,
 	Block: traits::Block,
 	AccountId: Clone + std::fmt::Display + Codec + Send + 'static + std::cmp::PartialEq,
@@ -123,10 +123,7 @@ where
 			))
 		})?;
 
-		for _ in 0..api.enqueued_txs_count(
-			&at,
-			sp_runtime::AccountId32::decode(&mut &<[u8; 32]>::from(account.clone())[..]).unwrap(),
-		) {
+		for _ in 0..api.enqueued_txs_count(&at, account.clone()).unwrap() {
 			nonce += traits::One::one();
 		}
 
