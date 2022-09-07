@@ -1,7 +1,7 @@
 services:
   relay_alice:
     environment:
-      - ${RUST_LOG:-info}
+      - RUST_LOG=info,ver=trace,block_shuffler=trace,runtime::ver=debug
     image: ${RELAYCHAIN_DOCKER_IMAGE:-parity/polkadot:v0.9.24}
     user: root
     command: >
@@ -18,6 +18,7 @@ services:
       --unsafe-rpc-external
       --rpc-cors=all
       --node-key=0000000000000000000000000000000000000000000000000000000000000001
+      --execution native
     volumes:
       - ./config:/etc/mangata
     ports:
@@ -28,7 +29,7 @@ services:
     image: ${RELAYCHAIN_DOCKER_IMAGE:-parity/polkadot:v0.9.24}
     user: root
     environment:
-      - ${RUST_LOG:-info}
+      - RUST_LOG=info,ver=trace,block_shuffler=trace,runtime::ver=debug
     command: >
       --bob
       --validator
@@ -42,6 +43,7 @@ services:
       --unsafe-ws-external
       --unsafe-rpc-external
       --rpc-cors=all
+      --execution native
     volumes:
       - ./config:/etc/mangata
     ports:

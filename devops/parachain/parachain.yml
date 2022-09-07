@@ -2,7 +2,7 @@ services:
   para_alice:
     image: ${PARACHAIN_DOCKER_IMAGE:-mangatasolutions/mangata-node:rococo-latest}
     environment:
-      - RUST_LOG=info,rpc=trace,txpool=trace,block_builder=trace
+      - RUST_LOG=info,block_builder=trace,block_shuffler=trace,runtime=debug,runtime::system=debug
       - RUST_BACKTRACE=1
       - LD_PRELOAD=${LD_PRELOAD}
     entrypoint: ""
@@ -21,43 +21,43 @@ services:
       --rpc-cors=all
       --node-key=0000000000000000000000000000000000000000000000000000000000000003
       -- 
-      --execution wasm 
       --chain ${RELAY_CHAIN:-/etc/mangata/rococo-local-0.9.24.json}
       --bootnodes=/dns/relay_alice/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
       --port 30334
       --ws-port 8844
+      --execution native
     volumes:
       - ./config:/etc/mangata
     ports:
       - 8844:9944
       - 40444:30333
 
-  para_bob:
-    image: ${PARACHAIN_DOCKER_IMAGE:-mangatasolutions/mangata-node:rococo-latest}
-    environment:
-      - RUST_LOG=info,rpc=trace,txpool=trace,block_builder=trace
-      - RUST_BACKTRACE=1
-      - LD_PRELOAD=${LD_PRELOAD}
-    entrypoint: ""
-    command: >
-      /mangata/node
-      --bob 
-      --collator 
-      --force-authoring 
-      --chain ${PARA_CHAIN:-mangata-rococo-local-testnet}
-      --bootnodes=/dns/para_alice/tcp/30333/p2p/12D3KooWKpDhPnax8CyJvVh77Z5T84a8EWZvY7c9Z7pZ1tk6sLBD
-      --base-path /tmp/para_bob
-      --port=30333 
-      --ws-port=9944 
-      --unsafe-ws-external
-      --unsafe-rpc-external
-      --rpc-cors=all
-      --node-key=0000000000000000000000000000000000000000000000000000000000000004
-      -- 
-      --execution wasm 
-      --chain ${RELAY_CHAIN:-/etc/mangata/rococo-local-0.9.24.json}
-      --bootnodes=/dns/relay_alice/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
-      --port 30334
-      --ws-port 8844
-    volumes:
-      - ./config:/etc/mangata
+  # para_bob:
+  #   image: ${PARACHAIN_DOCKER_IMAGE:-mangatasolutions/mangata-node:rococo-latest}
+  #   environment:
+  #     - RUST_LOG=info,block_builder=trace,block_shuffler=trace
+  #     - RUST_BACKTRACE=1
+  #     - LD_PRELOAD=${LD_PRELOAD}
+  #   entrypoint: ""
+  #   command: >
+  #     /mangata/node
+  #     --bob 
+  #     --collator 
+  #     --force-authoring 
+  #     --chain ${PARA_CHAIN:-mangata-rococo-local-testnet}
+  #     --bootnodes=/dns/para_alice/tcp/30333/p2p/12D3KooWKpDhPnax8CyJvVh77Z5T84a8EWZvY7c9Z7pZ1tk6sLBD
+  #     --base-path /tmp/para_bob
+  #     --port=30333 
+  #     --ws-port=9944 
+  #     --unsafe-ws-external
+  #     --unsafe-rpc-external
+  #     --rpc-cors=all
+  #     --node-key=0000000000000000000000000000000000000000000000000000000000000004
+  #     -- 
+  #     --chain ${RELAY_CHAIN:-/etc/mangata/rococo-local-0.9.24.json}
+  #     --bootnodes=/dns/relay_alice/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+  #     --port 30334
+  #     --ws-port 8844
+  #     --execution native
+  #   volumes:
+  #     - ./config:/etc/mangata
