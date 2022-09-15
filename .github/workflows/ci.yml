@@ -609,6 +609,8 @@ jobs:
       - name: Create images snapshots
         if: failure()
         run: |
+          docker-compose -f ./launch/output/docker-compose.yml logs parachain-2110-0 > logs-parallel-parachain-2110-0.txt
+          docker-compose -f ./launch/output/docker-compose.yml logs parachain-2110-1 > logs-parallel-parachain-2110-1.txt
           docker commit  $(docker ps | grep parachain-2110-1 | awk '{print $1}') mangata_test_run/mangata_bob_1
           docker save  --output=/tmp/mangata_bob_1.tar mangata_test_run/mangata_bob_1
           docker commit  $(docker ps | grep parachain-2110-0 | awk '{print $1}') mangata_test_run/mangata_alice_1
@@ -620,6 +622,8 @@ jobs:
         with:
           name: logsAndImages
           path: |
+            ./logs-parallel-parachain-2110-0.txt
+            ./logs-parallel-parachain-2110-1.txt
             ./logs.tgz
             /tmp/mangata_bob_1.tar
             /tmp/mangata_alice_1.tar
