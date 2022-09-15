@@ -1202,6 +1202,10 @@ impl_runtime_apis! {
 									tx.encode())
 							).collect()}))
 		}
+
+		fn can_enqueue_txs() -> bool{
+			System::can_enqueue_txs()
+		}
 	}
 
 	impl ver_api::VerNonceApi<Block, AccountId> for Runtime {
