@@ -1206,6 +1206,10 @@ impl_runtime_apis! {
 		fn can_enqueue_txs() -> bool{
 			System::can_enqueue_txs()
 		}
+
+		fn start_prevalidation() {
+			System::set_prevalidation()
+		}
 	}
 
 	impl ver_api::VerNonceApi<Block, AccountId> for Runtime {
