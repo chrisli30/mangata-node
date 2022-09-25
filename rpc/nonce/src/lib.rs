@@ -123,9 +123,11 @@ where
 			))
 		})?;
 
-		for _ in 0..api.enqueued_txs_count(&at, account.clone()).unwrap() {
+		let txs_in_queue = api.enqueued_txs_count(&at, account.clone()).unwrap();
+		for _ in 0..txs_in_queue {
 			nonce += traits::One::one();
 		}
+		log::debug!(target: "rpc::nonce", "nonce for {} at block {} => {} ({} in queue)", account, best, nonce, txs_in_queue);
 
 		Ok(adjust_nonce(&*self.pool, account, nonce))
 	}

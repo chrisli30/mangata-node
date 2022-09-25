@@ -38,7 +38,7 @@ parachains:
     - --wasm-execution=compiled
     - --execution=wasm
   env:
-    RUST_LOG: info,block_builder=trace,block_shuffler=trace,runtime::ver=trace,txpool=trace
+    RUST_LOG: info,block_builder=trace,block_shuffler=trace,runtime::ver=trace,txpool=trace,rpc::nonce=trace
   volumePath: /mangata/data
   nodes:
   - flags:
