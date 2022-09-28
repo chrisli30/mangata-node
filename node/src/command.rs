@@ -1,6 +1,7 @@
 use crate::{
 	chain_spec,
 	cli::{Cli, RelayChainCli, Subcommand},
+	command_helper::{inherent_benchmark_data, BenchmarkExtrinsicBuilder},
 	service,
 	service::new_partial,
 };
@@ -13,10 +14,13 @@ use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
 	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_service::config::{BasePath, PrometheusConfig};
+use sc_service::{
+	config::{BasePath, PrometheusConfig},
+	PartialComponents,
+};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
-use std::{io::Write, net::SocketAddr};
+use std::{io::Write, net::SocketAddr, sync::Arc};
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
@@ -373,7 +377,22 @@ pub fn run() -> Result<()> {
 
 						cmd.run(config, partials.client.clone(), db, storage)
 					}),
-					BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
+					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
+						env_logger::try_init();
+						log::info!("overhead command start");
+						let partials = new_partial::<
+							service::mangata_rococo_runtime::RuntimeApi,
+							service::MangataRococoRuntimeExecutor,
+						>(&config)?;
+						let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
+
+						cmd.run_ver(
+							config,
+							partials.client.clone(),
+							inherent_benchmark_data()?,
+							Arc::new(ext_builder),
+						)
+					}),
 					BenchmarkCmd::Machine(cmd) => runner
 						.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
 				},

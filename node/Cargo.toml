@@ -36,6 +36,7 @@ try-runtime = ["mangata-kusama-runtime/try-runtime", "mangata-rococo-runtime/try
 
 [dependencies]
 derive_more = "0.99.2"
+env_logger = "0.9.0"
 log = "0.4.17"
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 clap = { version = "3.1", features = ["derive"] }
@@ -55,6 +56,8 @@ mangata-primitives = { path = "../primitives/mangata/"}
 frame-benchmarking = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 frame-benchmarking-cli = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 try-runtime-cli = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
+frame-system = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
+pallet-transaction-payment = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 
 pallet-transaction-payment-rpc = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 
@@ -90,6 +93,7 @@ sp-consensus-aura = { git = "https://github.com/mangata-finance/substrate", bran
 sp-core = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 sp-inherents = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 sp-keystore = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
+sp-keyring = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 sp-offchain = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 sp-runtime = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 sp-session = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
