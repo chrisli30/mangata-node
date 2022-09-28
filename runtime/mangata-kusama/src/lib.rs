@@ -40,7 +40,7 @@ use pallet_transaction_payment::{Multiplier, OnChargeTransaction, TargetedFeeAdj
 pub use pallet_verifier;
 use pallet_vesting_mangata_rpc_runtime_api::VestingInfosWithLockedAt;
 // Polkadot Imports
-use polkadot_runtime_common::BlockHashCount;
+pub use polkadot_runtime_common::BlockHashCount;
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;

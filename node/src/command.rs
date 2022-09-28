@@ -344,7 +344,22 @@ pub fn run() -> Result<()> {
 
 						cmd.run(config, partials.client.clone(), db, storage)
 					}),
-					BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
+					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
+						env_logger::try_init();
+						log::info!("overhead command start");
+						let partials = new_partial::<
+							service::mangata_kusama_runtime::RuntimeApi,
+							service::MangataKusamaRuntimeExecutor,
+						>(&config)?;
+						let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
+
+						cmd.run_ver(
+							config,
+							partials.client.clone(),
+							inherent_benchmark_data()?,
+							Arc::new(ext_builder),
+						)
+					}),
 					BenchmarkCmd::Machine(cmd) => runner
 						.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
 				},
@@ -377,22 +392,7 @@ pub fn run() -> Result<()> {
 
 						cmd.run(config, partials.client.clone(), db, storage)
 					}),
-					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
-						env_logger::try_init();
-						log::info!("overhead command start");
-						let partials = new_partial::<
-							service::mangata_rococo_runtime::RuntimeApi,
-							service::MangataRococoRuntimeExecutor,
-						>(&config)?;
-						let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
-
-						cmd.run_ver(
-							config,
-							partials.client.clone(),
-							inherent_benchmark_data()?,
-							Arc::new(ext_builder),
-						)
-					}),
+					BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
 					BenchmarkCmd::Machine(cmd) => runner
 						.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
 				},
