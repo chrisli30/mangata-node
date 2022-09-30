@@ -21,6 +21,8 @@ use cumulus_primitives_core::ParaId;
 use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
 use cumulus_relay_chain_interface::{RelayChainError, RelayChainInterface, RelayChainResult};
 use cumulus_relay_chain_rpc_interface::RelayChainRPCInterface;
+use sp_api::ProvideRuntimeApi;
+use ver_api::VerApi;
 
 // Substrate Imports
 use crate::{
@@ -361,6 +363,10 @@ where
 	let parachain_config = prepare_node_config(parachain_config);
 
 	let params = new_partial::<RuntimeApi, Executor>(&parachain_config)?;
+	let at = sp_runtime::generic::BlockId::Number(0u32.into());
+	let c = params.client.clone();
+	c.runtime_api().can_enqueue_txs(&at).unwrap();
+
 	let (mut telemetry, telemetry_worker_handle) = params.other;
 
 	let client = params.client.clone();

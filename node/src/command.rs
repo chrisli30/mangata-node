@@ -18,9 +18,12 @@ use sc_service::{
 	config::{BasePath, PrometheusConfig},
 	PartialComponents,
 };
+use sp_api::ProvideRuntimeApi;
+use sp_block_builder::BlockBuilder;
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
 use std::{io::Write, net::SocketAddr, sync::Arc};
+use ver_api::VerApi;
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
@@ -351,14 +354,30 @@ pub fn run() -> Result<()> {
 							service::mangata_kusama_runtime::RuntimeApi,
 							service::MangataKusamaRuntimeExecutor,
 						>(&config)?;
-						let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
+						let inherent_data = inherent_benchmark_data().unwrap();
+						let empty_data = sp_inherents::InherentData::new();
+						let at = sp_runtime::generic::BlockId::Number(0u32.into());
+						let api = partials.client.runtime_api();
 
-						cmd.run_ver(
-							config,
-							partials.client.clone(),
-							inherent_benchmark_data()?,
-							Arc::new(ext_builder),
+						api.can_enqueue_txs(&at).unwrap();
+
+						api.inherent_extrinsics_with_context(
+							&at,
+							sp_core::ExecutionContext::BlockConstruction,
+							empty_data,
 						)
+						.unwrap();
+						Ok(())
+
+						// api.
+						// let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
+						//
+						// cmd.run_ver(
+						// 	config,
+						// 	partials.client.clone(),
+						// 	inherent_benchmark_data()?,
+						// 	Arc::new(ext_builder),
+						// )
 					}),
 					BenchmarkCmd::Machine(cmd) => runner
 						.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),

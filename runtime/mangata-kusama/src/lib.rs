@@ -1444,6 +1444,7 @@ impl_runtime_apis! {
 		}
 
 		fn inherent_extrinsics(data: sp_inherents::InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+			panic!("blah blah blah");
 			data.create_extrinsics()
 		}
 
