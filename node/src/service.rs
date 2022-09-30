@@ -22,6 +22,8 @@ use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
 use cumulus_relay_chain_interface::{RelayChainError, RelayChainInterface, RelayChainResult};
 use cumulus_relay_chain_rpc_interface::RelayChainRPCInterface;
 use sp_api::ProvideRuntimeApi;
+use sp_block_builder::BlockBuilder;
+use sp_inherents::InherentData;
 use ver_api::VerApi;
 
 // Substrate Imports
@@ -363,9 +365,9 @@ where
 	let parachain_config = prepare_node_config(parachain_config);
 
 	let params = new_partial::<RuntimeApi, Executor>(&parachain_config)?;
-	let at = sp_runtime::generic::BlockId::Number(0u32.into());
-	let c = params.client.clone();
-	c.runtime_api().can_enqueue_txs(&at).unwrap();
+	// let at = sp_runtime::generic::BlockId::Number(0u32.into());
+	// let c = params.client.clone();
+	// c.runtime_api().inherent_extrinsics(&at, InherentData::new()).unwrap();
 
 	let (mut telemetry, telemetry_worker_handle) = params.other;
 
