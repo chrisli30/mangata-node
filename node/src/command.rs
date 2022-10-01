@@ -361,12 +361,7 @@ pub fn run() -> Result<()> {
 
 						api.can_enqueue_txs(&at).unwrap();
 
-						api.inherent_extrinsics_with_context(
-							&at,
-							sp_core::ExecutionContext::BlockConstruction,
-							empty_data,
-						)
-						.unwrap();
+						api.inherent_extrinsics(&at, empty_data).unwrap();
 						Ok(())
 
 						// api.
