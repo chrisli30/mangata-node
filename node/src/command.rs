@@ -18,7 +18,7 @@ use sc_service::{
 	config::{BasePath, PrometheusConfig},
 	PartialComponents,
 };
-use sp_api::ProvideRuntimeApi;
+use sp_api::{Core, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
@@ -349,30 +349,26 @@ pub fn run() -> Result<()> {
 					}),
 					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
 						env_logger::try_init();
-						log::info!("overhead command start");
 						let partials = new_partial::<
 							service::mangata_kusama_runtime::RuntimeApi,
 							service::MangataKusamaRuntimeExecutor,
 						>(&config)?;
-						let inherent_data = inherent_benchmark_data().unwrap();
 						let empty_data = sp_inherents::InherentData::new();
-						let at = sp_runtime::generic::BlockId::Number(0u32.into());
-						let api = partials.client.runtime_api();
+						// let at = sp_runtime::generic::BlockId::Number(0u32.into());
+						// let api = partials.client.runtime_api();
+						let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
 
-						api.can_enqueue_txs(&at).unwrap();
-
-						api.inherent_extrinsics(&at, empty_data).unwrap();
-						Ok(())
+						// api.inherent_extrinsics(&at, empty_data).unwrap();
+						// Ok(())
 
 						// api.
-						// let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
 						//
-						// cmd.run_ver(
-						// 	config,
-						// 	partials.client.clone(),
-						// 	inherent_benchmark_data()?,
-						// 	Arc::new(ext_builder),
-						// )
+						cmd.run(
+							config,
+							partials.client.clone(),
+							inherent_benchmark_data()?,
+							Arc::new(ext_builder),
+						)
 					}),
 					BenchmarkCmd::Machine(cmd) => runner
 						.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
