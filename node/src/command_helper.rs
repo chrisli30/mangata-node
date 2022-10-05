@@ -123,5 +123,20 @@ pub fn inherent_benchmark_data() -> Result<InherentData> {
 	timestamp
 		.provide_inherent_data(&mut inherent_data)
 		.map_err(|e| format!("creating inherent data: {:?}", e))?;
+
+	let mock_para_inherent_provider =
+		cumulus_primitives_parachain_inherent::MockValidationDataInherentDataProvider {
+			current_para_block: 0,
+			relay_offset: 0,
+			relay_blocks_per_para_block: 2,
+			xcm_config: Default::default(),
+			raw_downward_messages: Default::default(),
+			raw_horizontal_messages: Default::default(),
+		};
+
+	mock_para_inherent_provider
+		.provide_inherent_data(&mut inherent_data)
+		.expect("Mock must provide inherent data; qed");
+
 	Ok(inherent_data)
 }

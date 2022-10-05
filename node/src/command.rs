@@ -353,17 +353,9 @@ pub fn run() -> Result<()> {
 							service::mangata_kusama_runtime::RuntimeApi,
 							service::MangataKusamaRuntimeExecutor,
 						>(&config)?;
-						let empty_data = sp_inherents::InherentData::new();
-						// let at = sp_runtime::generic::BlockId::Number(0u32.into());
-						// let api = partials.client.runtime_api();
 						let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
 
-						// api.inherent_extrinsics(&at, empty_data).unwrap();
-						// Ok(())
-
-						// api.
-						//
-						cmd.run(
+						cmd.run_ver(
 							config,
 							partials.client.clone(),
 							inherent_benchmark_data()?,
