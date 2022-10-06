@@ -349,15 +349,16 @@ pub fn run() -> Result<()> {
 					}),
 					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
 						env_logger::try_init();
-						let partials = new_partial::<
+						let PartialComponents { client, import_queue, .. } = new_partial::<
 							service::mangata_kusama_runtime::RuntimeApi,
 							service::MangataKusamaRuntimeExecutor,
 						>(&config)?;
-						let ext_builder = BenchmarkExtrinsicBuilder::new(partials.client.clone());
+						let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
 
 						cmd.run_ver(
 							config,
-							partials.client.clone(),
+							client.clone(),
+							import_queue,
 							inherent_benchmark_data()?,
 							Arc::new(ext_builder),
 						)
