@@ -349,10 +349,11 @@ pub fn run() -> Result<()> {
 					}),
 					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
 						env_logger::try_init();
-						let PartialComponents { client, import_queue, .. } = new_partial::<
-							service::mangata_kusama_runtime::RuntimeApi,
-							service::MangataKusamaRuntimeExecutor,
-						>(&config)?;
+						let PartialComponents { client, import_queue, task_manager, .. } =
+							new_partial::<
+								service::mangata_kusama_runtime::RuntimeApi,
+								service::MangataKusamaRuntimeExecutor,
+							>(&config)?;
 						let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
 
 						cmd.run_ver(
