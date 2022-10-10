@@ -202,10 +202,21 @@ pub mod pallet {
 	pub type PromotedPoolsRewards<T: Config> =
 		StorageMap<_, Twox64Concat, TokenId, Balance, ValueQuery>;
 
+	// #[pallet::storage]
+	// #[pallet::getter(fn get_promoted_pools_rewards_v2)]
+	// pub type PromotedPoolsRewardsV2<T: Config> =
+	// 	StorageMap<_, Twox64Concat, TokenId, U256, ValueQuery>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn get_promoted_pools_rewards_v2)]
 	pub type PromotedPoolsRewardsV2<T: Config> =
-		StorageMap<_, Twox64Concat, TokenId, U256, ValueQuery>;
+		StorageValue<_, Twox64Concat, BTeeMap<TokenId, PromotedPoolsRewardsInfo>, ValueQuery>;
+
+	#[derive(Encode, Decode, Clone, Default, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+	pub struct PromotedPoolsRewardsInfo {
+		pub weight_percent: Percent,
+		pub rewards: U256
+	}
 
 	#[pallet::error]
 	/// Errors
@@ -341,26 +352,24 @@ impl<T: Config> ComputeIssuance for Pallet<T> {
 }
 
 impl<T: Config> PoolPromoteApi for Pallet<T> {
-	fn promote_pool(liquidity_token_id: TokenId) -> bool {
-		if PromotedPoolsRewardsV2::<T>::contains_key(liquidity_token_id) {
-			false
-		} else {
-			PromotedPoolsRewardsV2::<T>::insert(liquidity_token_id, U256::from(0_u128));
-			true
-		}
+	fn update_pool_promotion(liquidity_token_id: TokenId, liquidity_mining_issuance_percent: Option<Percent>){
+		PromotedPoolsRewardsV2::<T>::mutate(|promoted_pools|{
+
+			match liquidity_mining_issuance_percent {
+				Some(percent) =>{promoted_pools.entry(liquidity_token_id).and_modify(|info| *info.weight_percent = liquidity_mining_issuance_percent).or_insert(
+					PromotedPoolsRewardsInfo {
+						weight_percent: liquidity_mining_issuance_percent,
+						rewards: U256::zero()
+					}
+				);},
+				None => {let _ = promoted_pools.remove(liquidity_token_id);}
+			}
+
+		});
 	}
 
 	fn get_pool_rewards_v2(liquidity_token_id: TokenId) -> Option<U256> {
-		PromotedPoolsRewardsV2::<T>::try_get(liquidity_token_id).ok()
-	}
-
-	fn unpromote_pool(liquidity_token_id: TokenId) -> bool {
-		if PromotedPoolsRewardsV2::<T>::contains_key(liquidity_token_id) {
-			true
-		} else {
-			PromotedPoolsRewardsV2::<T>::remove(liquidity_token_id);
-			false
-		}
+		PromotedPoolsRewardsV2::<T>::get().get(liquidity_token_id).map(|x| x.rewards)
 	}
 
 	// TODO
@@ -531,28 +540,45 @@ impl<T: Config> Pallet<T> {
 
 		let staking_issuance = issuance_config.staking_split * current_round_issuance;
 
-		// benchmark with max of X prom pools
-		let activated_pools: Vec<_> = PromotedPoolsRewardsV2::<T>::iter()
-			.filter_map(|(token_id, rewards)| {
-				T::ActivedPoolQueryApiType::get_pool_activate_amount(token_id)
-					.map(|activated_amount| (token_id, rewards, activated_amount))
-			})
-			.collect();
-		let mut liquidity_mining_issuance_per_pool = liquidity_mining_issuance;
+		PromotedPoolsRewardsV2::<T>::try_mutate(|promoted_pools|{
 
-		if activated_pools.len() > 0 {
-			liquidity_mining_issuance_per_pool /= activated_pools.len() as u128;
-		}
+			// benchmark with max of X prom pools
+			let activated_pools: Vec<_> = promoted_pools.iter()
+				.filter_map(|(token_id, info)| {
+					match T::ActivedPoolQueryApiType::get_pool_activate_amount(token_id){
+						Some(activated_amount) if !activated_amount.is_zero() => Some((token_id, info.weight_percent, info.rewards, activated_amount))
+						_ => None
+					}
+				})
+				.collect();
 
-		for (token_id, rewards, activated_amount) in activated_pools {
-			let rewards_per_liquidity: U256 = U256::from(liquidity_mining_issuance_per_pool)
-				.checked_mul(U256::from(u128::MAX))
-				.and_then(|x| x.checked_div(activated_amount.into()))
-				.and_then(|x| x.checked_add(rewards.into()))
-				.ok_or_else(|| DispatchError::from(Error::<T>::MathError))?;
+			let maybe_total_weight = activated_pools.iter().try_fold(Balance::zero(),
+				|acc, &(_token_id, weight_percent, _rewards, _activated_amount)| acc.checked_add(weight_percent.deconstruct()));
 
-			PromotedPoolsRewardsV2::<T>::insert(token_id, rewards_per_liquidity);
-		}
+			for (token_id, weight, rewards, activated_amount) in activated_pools {
+				let liquidity_mining_issuance_for_pool =
+					if let Some(total_weight) = maybe_total_weight {
+						if total_weight != Balance::from(100){
+							log::warn!(
+								"Promoted pool issuance calculations resulted in total_weight != 100 percent : {:?}",
+								total_weight
+							);
+						}
+						Percent::from_rational(weight.deconstruct(), total_weight).mul_floor(liquidity_mining_issuance)
+					} else {
+						liquidity_mining_issuance.checked_div(activated_pools.len().into()).unwrap_or(liquidity_mining_issuance)
+					};
+
+				let rewards_for_liquidity: U256 = U256::from(liquidity_mining_issuance_for_pool)
+					.checked_mul(U256::from(u128::MAX))
+					.and_then(|x| x.checked_div(activated_amount.into()))
+					.and_then(|x| x.checked_add(rewards.into()))
+					.ok_or_else(|| DispatchError::from(Error::<T>::MathError))?;
+
+				promoted_pools.entry(token_id).and_modify(|info| *info.rewards = rewards_for_liquidity);
+			}
+
+		})?;
 
 		{
 			let liquidity_mining_issuance_issued = T::Tokens::deposit_creating(
