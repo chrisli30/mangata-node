@@ -102,6 +102,7 @@ sp-transaction-pool = { git = "https://github.com/mangata-finance/substrate", br
 ver-api = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 sp-storage = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
 sp-trie = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev" }
+sp-ver = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev", features = ["helpers"]}
 
 
 # Cumulus dependencies

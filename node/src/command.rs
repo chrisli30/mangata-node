@@ -18,12 +18,11 @@ use sc_service::{
 	config::{BasePath, PrometheusConfig},
 	PartialComponents,
 };
-use sp_api::{Core, ProvideRuntimeApi};
-use sp_block_builder::BlockBuilder;
+
 use sp_core::hexdisplay::HexDisplay;
+
 use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
-use std::{io::Write, net::SocketAddr, sync::Arc};
-use ver_api::VerApi;
+use std::{convert::TryInto, io::Write, net::SocketAddr, sync::Arc, time::Duration};
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
@@ -349,18 +348,32 @@ pub fn run() -> Result<()> {
 					}),
 					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
 						env_logger::try_init();
-						let PartialComponents { client, import_queue, task_manager, .. } =
-							new_partial::<
-								service::mangata_kusama_runtime::RuntimeApi,
-								service::MangataKusamaRuntimeExecutor,
-							>(&config)?;
+						let PartialComponents { client, task_manager: _, .. } = new_partial::<
+							service::mangata_kusama_runtime::RuntimeApi,
+							service::MangataKusamaRuntimeExecutor,
+						>(&config)?;
 						let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
+
+						let genesis_block_inherent =
+							inherent_benchmark_data([0u8; 32], Duration::from_millis(0))?;
+
+						let seed = sp_ver::extract_inherent_data(&genesis_block_inherent).map_err(
+							|_| {
+								sp_blockchain::Error::Backend(String::from(
+									"cannot read random seed from inherents data",
+								))
+							},
+						)?;
+
+						let first_block_inherent = inherent_benchmark_data(
+							seed.seed.as_bytes().try_into().unwrap(),
+							Duration::from_millis(12000),
+						)?;
 
 						cmd.run_ver(
 							config,
 							client.clone(),
-							import_queue,
-							inherent_benchmark_data()?,
+							(genesis_block_inherent, first_block_inherent),
 							Arc::new(ext_builder),
 						)
 					}),

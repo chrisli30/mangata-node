@@ -5,9 +5,10 @@ use codec::Encode;
 use sc_cli::Result;
 use sc_client_api::BlockBackend;
 use sp_api::ProvideRuntimeApi;
-use sp_core::Pair;
+use sp_core::{testing::SR25519, Pair};
 use sp_inherents::{InherentData, InherentDataProvider};
 use sp_keyring::Sr25519Keyring;
+use sp_keystore::SyncCryptoStore;
 use sp_runtime::{generic, OpaqueExtrinsic, SaturatedConversion};
 use substrate_frame_rpc_system::AccountNonceApi;
 
@@ -115,28 +116,39 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for BenchmarkExtrinsicBuilder {
 }
 
 /// Generates inherent data for the `benchmark overhead` command.
-pub fn inherent_benchmark_data() -> Result<InherentData> {
-	let mut inherent_data = InherentData::new();
-	let d = Duration::from_millis(0);
-	let timestamp = sp_timestamp::InherentDataProvider::new(d.into());
+pub fn inherent_benchmark_data(prev_seed: [u8; 32], duration: Duration) -> Result<InherentData> {
+	let keystore = sp_keystore::testing::KeyStore::new();
+	let secret_uri = "//Alice";
+	let key_pair =
+		sp_core::sr25519::Pair::from_string(secret_uri, None).expect("Generates key pair");
+	keystore
+		.insert_unknown(SR25519, secret_uri, key_pair.public().as_ref())
+		.expect("Inserts unknown key");
 
-	timestamp
+	let seed =
+		sp_ver::calculate_next_seed_from_bytes(&keystore, &key_pair.public(), prev_seed.to_vec())
+			.unwrap();
+
+	let mut inherent_data = InherentData::new();
+
+	sp_timestamp::InherentDataProvider::new(duration.into())
 		.provide_inherent_data(&mut inherent_data)
 		.map_err(|e| format!("creating inherent data: {:?}", e))?;
 
-	let mock_para_inherent_provider =
-		cumulus_primitives_parachain_inherent::MockValidationDataInherentDataProvider {
-			current_para_block: 0,
-			relay_offset: 0,
-			relay_blocks_per_para_block: 2,
-			xcm_config: Default::default(),
-			raw_downward_messages: Default::default(),
-			raw_horizontal_messages: Default::default(),
-		};
-
-	mock_para_inherent_provider
+	sp_ver::RandomSeedInherentDataProvider(seed)
 		.provide_inherent_data(&mut inherent_data)
-		.expect("Mock must provide inherent data; qed");
+		.map_err(|e| format!("creating inherent data: {:?}", e))?;
+
+	cumulus_primitives_parachain_inherent::MockValidationDataInherentDataProvider {
+		current_para_block: 0,
+		relay_offset: 0,
+		relay_blocks_per_para_block: 2,
+		xcm_config: Default::default(),
+		raw_downward_messages: Default::default(),
+		raw_horizontal_messages: Default::default(),
+	}
+	.provide_inherent_data(&mut inherent_data)
+	.expect("Mock must provide inherent data; qed");
 
 	Ok(inherent_data)
 }

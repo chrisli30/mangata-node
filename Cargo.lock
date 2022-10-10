@@ -4831,6 +4831,7 @@ dependencies = [
  "sp-tracing",
  "sp-transaction-pool",
  "sp-trie",
+ "sp-ver",
  "sub-tokens",
  "substrate-build-script-utils",
  "substrate-prometheus-endpoint",
