@@ -354,26 +354,25 @@ pub fn run() -> Result<()> {
 						>(&config)?;
 						let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
 
-						let genesis_block_inherent =
+						let first_block_inherent =
 							inherent_benchmark_data([0u8; 32], Duration::from_millis(0))?;
 
-						let seed = sp_ver::extract_inherent_data(&genesis_block_inherent).map_err(
-							|_| {
+						let first_block_seed = sp_ver::extract_inherent_data(&first_block_inherent)
+							.map_err(|_| {
 								sp_blockchain::Error::Backend(String::from(
 									"cannot read random seed from inherents data",
 								))
-							},
-						)?;
+							})?;
 
-						let first_block_inherent = inherent_benchmark_data(
-							seed.seed.as_bytes().try_into().unwrap(),
+						let second_block_inherent = inherent_benchmark_data(
+							first_block_seed.seed.as_bytes().try_into().unwrap(),
 							Duration::from_millis(12000),
 						)?;
 
 						cmd.run_ver(
 							config,
 							client.clone(),
-							(genesis_block_inherent, first_block_inherent),
+							(first_block_inherent, second_block_inherent),
 							Arc::new(ext_builder),
 						)
 					}),

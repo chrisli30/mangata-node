@@ -148,7 +148,7 @@ pub fn inherent_benchmark_data(prev_seed: [u8; 32], duration: Duration) -> Resul
 		raw_horizontal_messages: Default::default(),
 	}
 	.provide_inherent_data(&mut inherent_data)
-	.expect("Mock must provide inherent data; qed");
+	.map_err(|e| format!("creating inherent data: {:?}", e))?;
 
 	Ok(inherent_data)
 }

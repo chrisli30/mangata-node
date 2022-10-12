@@ -752,9 +752,6 @@ fn mangata_genesis(
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
-		// aura: mangata_kusama_runtime::AuraConfig {
-		// 	authorities: vec![get_collator_keys_from_seed("Alice")],
-		// },
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		parachain_system: Default::default(),
