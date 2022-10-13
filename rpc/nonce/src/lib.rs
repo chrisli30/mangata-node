@@ -34,7 +34,6 @@ use sp_core::{hexdisplay::HexDisplay, Bytes};
 use sp_runtime::{
 	generic::BlockId,
 	traits,
-	traits::{Block as BlockT, Header as HeaderT},
 };
 
 pub use frame_system_rpc_runtime_api::AccountNonceApi;

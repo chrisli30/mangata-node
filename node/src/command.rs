@@ -347,7 +347,6 @@ pub fn run() -> Result<()> {
 						cmd.run(config, partials.client.clone(), db, storage)
 					}),
 					BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
-						env_logger::try_init();
 						let PartialComponents { client, task_manager: _, .. } = new_partial::<
 							service::mangata_kusama_runtime::RuntimeApi,
 							service::MangataKusamaRuntimeExecutor,

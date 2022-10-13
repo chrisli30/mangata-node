@@ -36,7 +36,6 @@ try-runtime = ["mangata-kusama-runtime/try-runtime", "mangata-rococo-runtime/try
 
 [dependencies]
 derive_more = "0.99.2"
-env_logger = "0.9.0"
 log = "0.4.17"
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 clap = { version = "3.1", features = ["derive"] }
