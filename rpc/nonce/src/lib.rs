@@ -37,7 +37,6 @@ use sp_runtime::{
 	traits::{Block as BlockT, Header as HeaderT},
 };
 
-
 pub use frame_system_rpc_runtime_api::AccountNonceApi;
 use sc_client_api::BlockBackend;
 use sp_api::ProvideRuntimeApi;
