@@ -5,6 +5,7 @@ use mangata_primitives::{Balance, TokenId};
 use mp_multipurpose_liquidity::{ActivateKind, BondKind};
 use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeDisplay};
 use sp_std::fmt::Debug;
+use sp_runtime::Percent;
 
 pub trait StakingReservesProviderTrait {
 	type AccountId: Parameter
@@ -144,7 +145,8 @@ pub trait XykFunctionsTrait<AccountId> {
 		liquidity_token_id: Self::CurrencyId,
 	) -> DispatchResult;
 
-	fn promote_pool(liquidity_token_id: TokenId) -> DispatchResult;
+	fn update_pool_promotion(liquidity_token_id: TokenId, liquidity_mining_issuance_percent: Option<Percent>) -> DispatchResult;
+		
 
 	fn activate_liquidity(
 		sender: AccountId,
