@@ -28,7 +28,7 @@ pub mod asset_register {
 	use super::*;
 	#[cfg(feature = "try-runtime")]
 	use frame_support::migration::storage_key_iter;
-	use frame_support::{log, traits::OnRuntimeUpgrade};
+	use frame_support::{log, traits::OnRuntimeUpgrade, Twox64Concat};
 
 	pub struct MigrateToXykMetadata;
 	impl OnRuntimeUpgrade for MigrateToXykMetadata {
@@ -88,15 +88,7 @@ pub mod asset_register {
 #[cfg(test)]
 mod tests {
 	use crate::migration::asset_register::MigrateToXykMetadata;
-	use frame_support::{
-		assert_ok,
-		migration::{storage_iter, storage_key_iter},
-		pallet_prelude::GenesisBuild,
-		storage,
-		traits::OnRuntimeUpgrade,
-	};
-	use mangata_types::TokenId;
-	use sp_core::{hexdisplay::HexDisplay, twox_128, twox_64};
+	use frame_support::{storage, traits::OnRuntimeUpgrade};
 
 	use super::*;
 

@@ -13235,6 +13235,21 @@ dependencies = [
 ]
 
 [[patch.unused]]
+name = "pallet-nicks"
+version = "4.0.0-dev"
+source = "git+https://github.com/mangata-finance//substrate?branch=feature/asset-metadata-xyk#000176749274c37c5ead5da749157c20b3ae2495"
+
+[[patch.unused]]
+name = "sc-consensus-uncles"
+version = "0.10.0-dev"
+source = "git+https://github.com/mangata-finance//substrate?branch=feature/asset-metadata-xyk#000176749274c37c5ead5da749157c20b3ae2495"
+
+[[patch.unused]]
+name = "sp-serializer"
+version = "4.0.0-dev"
+source = "git+https://github.com/mangata-finance//substrate?branch=feature/asset-metadata-xyk#000176749274c37c5ead5da749157c20b3ae2495"
+
+[[patch.unused]]
 name = "beefy-gadget"
 version = "4.0.0-dev"
 source = "git+https://github.com/mangata-finance//substrate?branch=mangata-dev#8799bec7481d50db3e1eafed3b0d0b8e271ccaa2"
@@ -14033,21 +14048,6 @@ source = "git+https://github.com/mangata-finance//substrate?branch=mangata-dev#8
 name = "ver-api"
 version = "4.0.0-dev"
 source = "git+https://github.com/mangata-finance//substrate?branch=mangata-dev#8799bec7481d50db3e1eafed3b0d0b8e271ccaa2"
-
-[[patch.unused]]
-name = "pallet-nicks"
-version = "4.0.0-dev"
-source = "git+https://github.com/mangata-finance//substrate?branch=feature/asset-metadata-xyk#000176749274c37c5ead5da749157c20b3ae2495"
-
-[[patch.unused]]
-name = "sc-consensus-uncles"
-version = "0.10.0-dev"
-source = "git+https://github.com/mangata-finance//substrate?branch=feature/asset-metadata-xyk#000176749274c37c5ead5da749157c20b3ae2495"
-
-[[patch.unused]]
-name = "sp-serializer"
-version = "4.0.0-dev"
-source = "git+https://github.com/mangata-finance//substrate?branch=feature/asset-metadata-xyk#000176749274c37c5ead5da749157c20b3ae2495"
 
 [[patch.unused]]
 name = "pallet-nicks"
