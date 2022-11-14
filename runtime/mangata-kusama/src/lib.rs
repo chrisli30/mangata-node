@@ -769,25 +769,27 @@ impl pallet_sudo_origin::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
 	type SudoOrigin =
-		pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>;
+		pallet_collective_mangata::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>;
 }
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+	pub const CouncilProposalCloseDelay: BlockNumber = 3 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
 	pub const CouncilMaxMembers: u32 = 100;
 }
 
-type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
+type CouncilCollective = pallet_collective_mangata::Instance1;
+impl pallet_collective_mangata::Config<CouncilCollective> for Runtime {
 	type Origin = Origin;
 	type Proposal = Call;
 	type Event = Event;
 	type MotionDuration = CouncilMotionDuration;
+	type ProposalCloseDelay = CouncilProposalCloseDelay;
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective_weights::ModuleWeight<Runtime>;
+	type DefaultVote = pallet_collective_mangata::PrimeDefaultVote;
+	type WeightInfo = weights::pallet_collective_mangata_weights::ModuleWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1107,7 +1109,7 @@ construct_runtime!(
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 41,
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 49,
 		SudoOrigin: pallet_sudo_origin::{Pallet, Call, Event<T>} = 50,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 51,
+		Council: pallet_collective_mangata::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 51,
 		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 52,
 
 		// Bootstrap
@@ -1131,7 +1133,7 @@ mod benches {
 		[parachain_staking, ParachainStaking]
 		[pallet_xyk, Xyk]
 		[pallet_treasury, Treasury]
-		[pallet_collective, Council]
+		[pallet_collective_mangata, Council]
 		[pallet_elections_phragmen, Elections]
 		[pallet_bootstrap, Bootstrap]
 		[pallet_crowdloan_rewards, Crowdloan]
