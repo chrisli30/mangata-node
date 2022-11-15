@@ -12,18 +12,35 @@ env:
   DOCKER_BUILDER_IMAGE: mangatasolutions/node-builder:0.2
   DISABLE_TTY: 1
 
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
   build-node-image-new:
     runs-on: [self-hosted, compile]
+    # runs-on: 'ubuntu-latest'
     container:
       image: mangatasolutions/node-builder:multi
     steps:
       - uses: actions/checkout@v3
-      # - name: Cache the Cargo dependencies
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: /usr/local/cargo
-      #     key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+      
+      - name: Cache the Cargo dependencies
+        uses: mansagroup/gcs-cache-action@v1.0.3
+        with:
+          bucket: mangata-node-ci-cache
+          path: |
+            target
+            /usr/local/cargo
+            /root/.cache/sccache
+          key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      
+      - run: cargo build --release
 
       # - name: Build node using try runtime feature rococo
       #   run: cargo build --release --features=try-runtime,mangata-rococo
@@ -34,9 +51,9 @@ jobs:
       # - name: Run try-runtime Kusama Mainnet
       #   run: cargo run --release --features=try-runtime try-runtime --chain=kusama-mainnet --execution=Native on-runtime-upgrade live --uri wss://prod-kusama-collator-01.mangatafinance.cloud:443
       
-      # - name: Fix permissions on self-hosted runner
-      #   if: always()
-      #   run: chown -R 1003:1004 $GITHUB_WORKSPACE
+      - name: Fix permissions on self-hosted runner
+        if: always()
+        run: chown -R 1003:1004 $GITHUB_WORKSPACE
   
   # build-node-image:
   #   runs-on: [self-hosted, compile]

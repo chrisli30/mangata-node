@@ -47,6 +47,9 @@ jobs:
         run: echo "GLOBAL_VERSION=${{ github.sha }}" >> $GITHUB_OUTPUT
 
   build-and-test:
+    permissions:
+      contents: write
+      id-token: write
     if: ${{ github.event.inputs.skipBuild != 'true' }}
     needs: [init]
     name: Build
