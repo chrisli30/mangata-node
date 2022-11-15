@@ -154,11 +154,11 @@ impl_opaque_keys! {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("mangata-parachain"),
 	impl_name: create_runtime_str!("mangata-parachain"),
-	authoring_version: 10,
-	spec_version: 10,
+	authoring_version: 11,
+	spec_version: 11,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 10,
+	transaction_version: 11,
 	state_version: 0,
 };
 
@@ -488,7 +488,7 @@ impl pallet_xyk::Config for Runtime {
 	type PoolFeePercentage = frame_support::traits::ConstU128<20>;
 	type TreasuryFeePercentage = frame_support::traits::ConstU128<5>;
 	type BuyAndBurnFeePercentage = frame_support::traits::ConstU128<5>;
-	type RewardsDistributionPeriod = frame_support::traits::ConstU32<1200>;
+	type RewardsDistributionPeriod = frame_support::traits::ConstU32<20>;
 	type VestingProvider = Vesting;
 	type DisallowedPools = Bootstrap;
 	type DisabledTokens = TestTokensFilter;
@@ -844,7 +844,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 parameter_types! {
 	/// Default BlocksPerRound is every 4 hours (1200 * 12 second block times)
-	pub const BlocksPerRound: u32 = 4 * HOURS;
+	pub const BlocksPerRound: u32 = 4 * MINUTES;
 	/// Collator candidate exit delay (number of rounds)
 	pub const LeaveCandidatesDelay: u32 = 2;
 	/// Collator candidate bond increases/decreases delay (number of rounds)
