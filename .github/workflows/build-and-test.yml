@@ -51,7 +51,7 @@ jobs:
           key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       
       - run: cargo build --release
-      - name: Setup tmate session
+      - name: Setup tmate session 2
         uses: mxschmitt/action-tmate@v3
         with:
           sudo: false
