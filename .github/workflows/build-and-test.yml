@@ -60,12 +60,12 @@ jobs:
             ~/.cache/sccache
           key: cargo-sccache-${{ runner.os }}-${{ github.sha }}
 
-      - uses: docker/setup-buildx-action@v2.2.1
-      - run: cargo build --release
-      # - name: Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
-      #   with:
-      #     sudo: false
+      # - uses: docker/setup-buildx-action@v2.2.1
+      # - run: cargo build --release
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          sudo: false
       
       # - name: Build and push
       #   uses: docker/build-push-action@v3.2.0
