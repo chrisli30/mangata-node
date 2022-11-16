@@ -28,11 +28,6 @@ jobs:
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
-      
-      - uses: docker/login-action@v2.1.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Cache the Cargo dependencies
         uses: mansagroup/gcs-cache-action@v1.0.3
@@ -50,6 +45,7 @@ jobs:
       
       - name: Build and push Docker image
         run: |
+          docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
           docker build -f devops/dockerfiles/node/Dockerfile \
           --build-arg NODE_BINARY=target/release/mangata-node \
           --build-arg WASM=target/release/wbuild/mangata-rococo-runtime/mangata_rococo_runtime.compact.compressed.wasm \
