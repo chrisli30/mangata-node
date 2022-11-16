@@ -65,24 +65,29 @@ jobs:
       #   with:
       #     sudo: false
       
-      # - name: Build push
-      #   run: |
-      #     docker 
-      - name: Build and push
-        uses: docker/build-push-action@v3.2.0
-        with:
-          push: false
-          context: .
-          file: devops/dockerfiles/node/Dockerfile
-          cache-from: type=registry,ref=mangatasolutions/mangata-node
-          cache-to: type=registry,ref=mangatasolutions/mangata-node,mode=max
-          build-args: |
-            NODE_BINARY=target/release/mangata-node
-            WASM=target/release/wbuild/mangata-rococo-runtime/mangata_rococo_runtime.compact.compressed.wasm
-          tags: |
-            "mangatasolutions/mangata-node:${{ inputs.version }}"
-            "mangatasolutions/mangata-node:rococo-${{ inputs.version }}"
-            "mangatasolutions/mangata-node:kusama-${{ inputs.version }}"
+      - name: Build push
+        run: |
+          docker build -f devops/dockerfiles/node/Dockerfile \
+          --build-arg NODE_BINARY=target/release/mangata-node \
+          --build-arg WASM=target/release/wbuild/mangata-rococo-runtime/mangata_rococo_runtime.compact.compressed.wasm \
+          -t mangatasolutions/mangata-node:${{ inputs.version }} .
+          
+          docker push mangatasolutions/mangata-node:${{ inputs.version }}
+      # - name: Build and push
+      #   uses: docker/build-push-action@v3.2.0
+      #   with:
+      #     push: false
+      #     context: .
+      #     file: devops/dockerfiles/node/Dockerfile
+      #     cache-from: type=registry,ref=mangatasolutions/mangata-node
+      #     cache-to: type=registry,ref=mangatasolutions/mangata-node,mode=max
+      #     build-args: |
+      #       NODE_BINARY=target/release/mangata-node
+      #       WASM=target/release/wbuild/mangata-rococo-runtime/mangata_rococo_runtime.compact.compressed.wasm
+      #     tags: |
+      #       "mangatasolutions/mangata-node:${{ inputs.version }}"
+      #       "mangatasolutions/mangata-node:rococo-${{ inputs.version }}"
+      #       "mangatasolutions/mangata-node:kusama-${{ inputs.version }}"
       
       - name: Fix permissions on self-hosted runner
         if: always()
