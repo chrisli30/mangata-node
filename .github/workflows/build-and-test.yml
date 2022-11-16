@@ -35,17 +35,37 @@ jobs:
         with:
           bucket: mangata-node-ci-cache
           path: |
-            target
-            /usr/local/cargo
-            /root/.cache/sccache
+            ${{ github.workspace }}/target
           # key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          key: cargo-cache-${{ runner.os }}-${{ github.sha }}
-      
-      - uses: docker/setup-buildx-action@v2.2.1
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
+          key: cargo-target-${{ runner.os }}-${{ github.sha }}
+      - name: Cache the Cargo dependencies
+        uses: mansagroup/gcs-cache-action@v1.0.3
         with:
-          sudo: false
+          bucket: mangata-node-ci-cache
+          path: |
+            /usr/local/cargo/git
+          key: cargo-git-${{ runner.os }}-${{ github.sha }}
+      - name: Cache the Cargo dependencies
+        uses: mansagroup/gcs-cache-action@v1.0.3
+        with:
+          bucket: mangata-node-ci-cache
+          path: |
+            /usr/local/cargo/registry
+          key: cargo-registry-${{ runner.os }}-${{ github.sha }}
+      - name: Cache the Cargo dependencies
+        uses: mansagroup/gcs-cache-action@v1.0.3
+        with:
+          bucket: mangata-node-ci-cache
+          path: |
+            ~/.cache/sccache
+          key: cargo-sccache-${{ runner.os }}-${{ github.sha }}
+
+      - uses: docker/setup-buildx-action@v2.2.1
+      - run: cargo build --release
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      #   with:
+      #     sudo: false
       
       # - name: Build and push
       #   uses: docker/build-push-action@v3.2.0
