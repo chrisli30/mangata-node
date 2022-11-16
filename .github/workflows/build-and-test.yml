@@ -38,18 +38,24 @@ jobs:
             target
             /usr/local/cargo
             /root/.cache/sccache
-          key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          # key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-cache-${{ runner.os }}-${{ github.sha }}
       
-      - run: cargo build --release --features=try-runtime,mangata-rococo
-
-      # - name: Build node using try runtime feature rococo
-      #   run: cargo build --release --features=try-runtime,mangata-rococo
-
-      # - name: Run try-runtime Rococo testnet
-      #   run: cargo run --release --features=try-runtime,mangata-rococo try-runtime --chain=public-testnet --execution=Native on-runtime-upgrade live --uri wss://roccoco-testnet-collator-01.mangatafinance.cloud:443
-
-      # - name: Run try-runtime Kusama Mainnet
-      #   run: cargo run --release --features=try-runtime try-runtime --chain=kusama-mainnet --execution=Native on-runtime-upgrade live --uri wss://prod-kusama-collator-01.mangatafinance.cloud:443
+      - uses: docker/setup-buildx-action@v2.2.1
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          sudo: false
+      
+      # - name: Build and push
+      #   uses: docker/build-push-action@v3.2.0
+      #   with:
+      #     push: false
+      #     file: devops/dockerfiles/node-new/Dockerfile
+      #     cache-from: type=registry,ref=mangatasolutions/mangata-node
+      #     cache-to: type=registry,ref=mangatasolutions/mangata-node,mode=max
+      #     tags: |
+      #       "mangatasolutions/mangata-node:test"
       
       - name: Fix permissions on self-hosted runner
         if: always()
