@@ -36,10 +36,7 @@ jobs:
           bucket: mangata-node-ci-cache
           path: |
             ${{ github.workspace }}/target
-          # key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          key: cargo-target-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            cargo-target-${{ runner.os }}-
+          key: cargo-target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       
       - name: Cache the Cargo dependencies git
         uses: mansagroup/gcs-cache-action@v1.0.3
@@ -47,9 +44,7 @@ jobs:
           bucket: mangata-node-ci-cache
           path: |
             /usr/local/cargo/git
-          key: cargo-git-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            cargo-git-${{ runner.os }}-
+          key: cargo-git-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       
       - name: Cache the Cargo dependencies registry
         uses: mansagroup/gcs-cache-action@v1.0.3
@@ -57,9 +52,7 @@ jobs:
           bucket: mangata-node-ci-cache
           path: |
             /usr/local/cargo/registry
-          key: cargo-registry-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            cargo-registry-${{ runner.os }}-
+          key: cargo-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       
       - name: Cache the Cargo dependencies sccache
         uses: mansagroup/gcs-cache-action@v1.0.3
@@ -67,16 +60,14 @@ jobs:
           bucket: mangata-node-ci-cache
           path: |
             ~/.cache/sccache
-          key: cargo-sccache-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            cargo-sccache-${{ runner.os }}-
+          key: cargo-sccache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
       # - uses: docker/setup-buildx-action@v2.2.1
-      # - run: cargo build --release
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          sudo: false
+      - run: cargo build --release
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      #   with:
+      #     sudo: false
       
       # - name: Build and push
       #   uses: docker/build-push-action@v3.2.0
