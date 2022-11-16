@@ -30,7 +30,7 @@ jobs:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
       
-      - name: Cache the Cargo dependencies
+      - name: Cache the Cargo dependencies target
         uses: mansagroup/gcs-cache-action@v1.0.3
         with:
           bucket: mangata-node-ci-cache
@@ -38,27 +38,38 @@ jobs:
             ${{ github.workspace }}/target
           # key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           key: cargo-target-${{ runner.os }}-${{ github.sha }}
-      - name: Cache the Cargo dependencies
+          restore-keys: |
+            cargo-target-${{ runner.os }}-
+      
+      - name: Cache the Cargo dependencies git
         uses: mansagroup/gcs-cache-action@v1.0.3
         with:
           bucket: mangata-node-ci-cache
           path: |
             /usr/local/cargo/git
           key: cargo-git-${{ runner.os }}-${{ github.sha }}
-      - name: Cache the Cargo dependencies
+          restore-keys: |
+            cargo-git-${{ runner.os }}-
+      
+      - name: Cache the Cargo dependencies registry
         uses: mansagroup/gcs-cache-action@v1.0.3
         with:
           bucket: mangata-node-ci-cache
           path: |
             /usr/local/cargo/registry
           key: cargo-registry-${{ runner.os }}-${{ github.sha }}
-      - name: Cache the Cargo dependencies
+          restore-keys: |
+            cargo-registry-${{ runner.os }}-
+      
+      - name: Cache the Cargo dependencies sccache
         uses: mansagroup/gcs-cache-action@v1.0.3
         with:
           bucket: mangata-node-ci-cache
           path: |
             ~/.cache/sccache
           key: cargo-sccache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            cargo-sccache-${{ runner.os }}-
 
       # - uses: docker/setup-buildx-action@v2.2.1
       # - run: cargo build --release
