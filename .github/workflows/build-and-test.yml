@@ -50,21 +50,35 @@ jobs:
             ~/.cache/sccache
           key: cargo-cache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       
-      - run: cargo build --release
-      - name: Setup tmate session 2
-        uses: mxschmitt/action-tmate@v3
-        with:
-          sudo: false
+      - name: Build mangata-node
+        run: cargo build --release
       
-      # - name: Build and push
-      #   uses: docker/build-push-action@v3.2.0
+      - uses: actions/upload-artifact@v3
+        with:
+          name: binary-and-wasms
+          path: |
+            target/release/mangata-node
+            target/release/wbuild/mangata-rococo-runtime/mangata_rococo_runtime.compact.compressed.wasm
+            target/release/wbuild/mangata-kusama-runtime/mangata_kusama_runtime.compact.compressed.wasm
+      # - name: Setup tmate session 2
+      #   uses: mxschmitt/action-tmate@v3
       #   with:
-      #     push: false
-      #     file: devops/dockerfiles/node-new/Dockerfile
-      #     cache-from: type=registry,ref=mangatasolutions/mangata-node
-      #     cache-to: type=registry,ref=mangatasolutions/mangata-node,mode=max
-      #     tags: |
-      #       "mangatasolutions/mangata-node:test"
+      #     sudo: false
+      
+      - name: Build and push
+        uses: docker/build-push-action@v3.2.0
+        with:
+          push: false
+          file: devops/dockerfiles/node/Dockerfile
+          cache-from: type=registry,ref=mangatasolutions/mangata-node
+          cache-to: type=registry,ref=mangatasolutions/mangata-node,mode=max
+          build-args: |
+            NODE_BINARY=target/release/mangata-node
+            WASM=target/release/wbuild/mangata-rococo-runtime/mangata_rococo_runtime.compact.compressed.wasm
+          tags: |
+            "mangatasolutions/mangata-node:${{ inputs.version }}"
+            "mangatasolutions/mangata-node:rococo-${{ inputs.version }}"
+            "mangatasolutions/mangata-node:kusama-${{ inputs.version }}"
       
       - name: Fix permissions on self-hosted runner
         if: always()
